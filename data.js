@@ -1,7 +1,9 @@
 /* Latince fiil ekleri — veri ve çekim motoru.
  * Her biçim parçalardan oluşur: {t: metin, k: tür}
  *   k = 'r' kök (şimdiki zaman gövdesi), 'p' perfectum gövdesi,
- *       'v' bağlayıcı/tema ünlüsü, 'm' zaman işareti, 'e' kişi eki
+ *       'v' bağlayıcı/tema ünlüsü, 'm' zaman işareti, 'e' kişi eki,
+ *       'q' participium (PPP) gövdesi, 'a' sıfat eki (-us/-ī), 'x' yardımcı fiil (sum),
+ *       'sp' iki kelime arasındaki boşluk
  * Hem tarayıcıda (global LATIN) hem Node'da (module.exports) çalışır.
  */
 (function (root) {
@@ -31,7 +33,7 @@
   // "Zaman" seçenekleri: çatı + zaman birleşimi
   const TENSE_KEYS = [
     'act.pres', 'act.impf', 'act.fut', 'act.perf', 'act.plpf', 'act.fut2',
-    'pas.pres', 'pas.impf', 'pas.fut'
+    'pas.pres', 'pas.impf', 'pas.fut', 'pas.perf', 'pas.plpf', 'pas.fut2'
   ];
 
   function tenseLabel(voice, tense) {
@@ -49,7 +51,9 @@
     { n: 4, title: 'Edilgen çatı', keys: ['pas.pres', 'pas.impf', 'pas.fut'], irregular: false,
       desc: 'Edilgen kişi ekleri: -r, -ris, -tur, -mur, -minī, -ntur.' },
     { n: 5, title: 'Düzensiz: sum, possum', keys: ['act.pres', 'act.impf', 'act.fut', 'act.perf', 'act.plpf', 'act.fut2'], irregular: true,
-      desc: 'sum (olmak) ve possum (-ebilmek): ekler tanıdık, gövde düzensiz.' }
+      desc: 'sum (olmak) ve possum (-ebilmek): ekler tanıdık, gövde düzensiz.' },
+    { n: 6, title: 'Edilgen perfectum sistemi', keys: ['pas.perf', 'pas.plpf', 'pas.fut2'], irregular: false,
+      desc: 'Participium + sum: amātus sum, amātus eram, amātus erō.' }
   ];
 
   const CONJ = {
@@ -65,59 +69,59 @@
    * mis: -miş gövdesi, pyor / pecek: edilgen gövdeler. */
   const VERBS = [
     // 1. çekim
-    { id: 'amo', conj: '1', lemma: 'amō, amāre, amāvī', root: 'am', perf: 'amāv', tr: 'sevmek',
+    { id: 'amo', conj: '1', lemma: 'amō, amāre, amāvī, amātus', root: 'am', perf: 'amāv', ppp: 'amāt', tr: 'sevmek',
       t: { yor: 'seviyor', ecek: 'sevecek', di: 'sevdi', mis: 'sevmiş', pyor: 'seviliyor', pecek: 'sevilecek' } },
-    { id: 'laudo', conj: '1', lemma: 'laudō, laudāre, laudāvī', root: 'laud', perf: 'laudāv', tr: 'övmek',
+    { id: 'laudo', conj: '1', lemma: 'laudō, laudāre, laudāvī, laudātus', root: 'laud', perf: 'laudāv', ppp: 'laudāt', tr: 'övmek',
       t: { yor: 'övüyor', ecek: 'övecek', di: 'övdü', mis: 'övmüş', pyor: 'övülüyor', pecek: 'övülecek' } },
-    { id: 'voco', conj: '1', lemma: 'vocō, vocāre, vocāvī', root: 'voc', perf: 'vocāv', tr: 'çağırmak',
+    { id: 'voco', conj: '1', lemma: 'vocō, vocāre, vocāvī, vocātus', root: 'voc', perf: 'vocāv', ppp: 'vocāt', tr: 'çağırmak',
       t: { yor: 'çağırıyor', ecek: 'çağıracak', di: 'çağırdı', mis: 'çağırmış', pyor: 'çağrılıyor', pecek: 'çağrılacak' } },
-    { id: 'porto', conj: '1', lemma: 'portō, portāre, portāvī', root: 'port', perf: 'portāv', tr: 'taşımak',
+    { id: 'porto', conj: '1', lemma: 'portō, portāre, portāvī, portātus', root: 'port', perf: 'portāv', ppp: 'portāt', tr: 'taşımak',
       t: { yor: 'taşıyor', ecek: 'taşıyacak', di: 'taşıdı', mis: 'taşımış', pyor: 'taşınıyor', pecek: 'taşınacak' } },
-    { id: 'narro', conj: '1', lemma: 'narrō, narrāre, narrāvī', root: 'narr', perf: 'narrāv', tr: 'anlatmak',
+    { id: 'narro', conj: '1', lemma: 'narrō, narrāre, narrāvī, narrātus', root: 'narr', perf: 'narrāv', ppp: 'narrāt', tr: 'anlatmak',
       t: { yor: 'anlatıyor', ecek: 'anlatacak', di: 'anlattı', mis: 'anlatmış', pyor: 'anlatılıyor', pecek: 'anlatılacak' } },
     // 2. çekim
-    { id: 'moneo', conj: '2', lemma: 'moneō, monēre, monuī', root: 'mon', perf: 'monu', tr: 'uyarmak',
+    { id: 'moneo', conj: '2', lemma: 'moneō, monēre, monuī, monitus', root: 'mon', perf: 'monu', ppp: 'monit', tr: 'uyarmak',
       t: { yor: 'uyarıyor', ecek: 'uyaracak', di: 'uyardı', mis: 'uyarmış', pyor: 'uyarılıyor', pecek: 'uyarılacak' } },
-    { id: 'terreo', conj: '2', lemma: 'terreō, terrēre, terruī', root: 'terr', perf: 'terru', tr: 'korkutmak',
+    { id: 'terreo', conj: '2', lemma: 'terreō, terrēre, terruī, territus', root: 'terr', perf: 'terru', ppp: 'territ', tr: 'korkutmak',
       t: { yor: 'korkutuyor', ecek: 'korkutacak', di: 'korkuttu', mis: 'korkutmuş', pyor: 'korkutuluyor', pecek: 'korkutulacak' } },
-    { id: 'video', conj: '2', lemma: 'videō, vidēre, vīdī', root: 'vid', perf: 'vīd', tr: 'görmek',
+    { id: 'video', conj: '2', lemma: 'videō, vidēre, vīdī, vīsus', root: 'vid', perf: 'vīd', ppp: 'vīs', tr: 'görmek',
       t: { yor: 'görüyor', ecek: 'görecek', di: 'gördü', mis: 'görmüş', pyor: 'görülüyor', pecek: 'görülecek' } },
-    { id: 'teneo', conj: '2', lemma: 'teneō, tenēre, tenuī', root: 'ten', perf: 'tenu', tr: 'tutmak',
+    { id: 'teneo', conj: '2', lemma: 'teneō, tenēre, tenuī, tentus', root: 'ten', perf: 'tenu', ppp: 'tent', tr: 'tutmak',
       t: { yor: 'tutuyor', ecek: 'tutacak', di: 'tuttu', mis: 'tutmuş', pyor: 'tutuluyor', pecek: 'tutulacak' } },
-    { id: 'doceo', conj: '2', lemma: 'doceō, docēre, docuī', root: 'doc', perf: 'docu', tr: 'öğretmek',
+    { id: 'doceo', conj: '2', lemma: 'doceō, docēre, docuī, doctus', root: 'doc', perf: 'docu', ppp: 'doct', tr: 'öğretmek',
       t: { yor: 'öğretiyor', ecek: 'öğretecek', di: 'öğretti', mis: 'öğretmiş', pyor: 'öğretiliyor', pecek: 'öğretilecek' } },
     // 3. çekim
-    { id: 'rego', conj: '3', lemma: 'regō, regere, rēxī', root: 'reg', perf: 'rēx', tr: 'yönetmek',
+    { id: 'rego', conj: '3', lemma: 'regō, regere, rēxī, rēctus', root: 'reg', perf: 'rēx', ppp: 'rēct', tr: 'yönetmek',
       t: { yor: 'yönetiyor', ecek: 'yönetecek', di: 'yönetti', mis: 'yönetmiş', pyor: 'yönetiliyor', pecek: 'yönetilecek' } },
-    { id: 'duco', conj: '3', lemma: 'dūcō, dūcere, dūxī', root: 'dūc', perf: 'dūx', tr: 'götürmek',
+    { id: 'duco', conj: '3', lemma: 'dūcō, dūcere, dūxī, ductus', root: 'dūc', perf: 'dūx', ppp: 'duct', tr: 'götürmek',
       t: { yor: 'götürüyor', ecek: 'götürecek', di: 'götürdü', mis: 'götürmüş', pyor: 'götürülüyor', pecek: 'götürülecek' } },
-    { id: 'mitto', conj: '3', lemma: 'mittō, mittere, mīsī', root: 'mitt', perf: 'mīs', tr: 'göndermek',
+    { id: 'mitto', conj: '3', lemma: 'mittō, mittere, mīsī, missus', root: 'mitt', perf: 'mīs', ppp: 'miss', tr: 'göndermek',
       t: { yor: 'gönderiyor', ecek: 'gönderecek', di: 'gönderdi', mis: 'göndermiş', pyor: 'gönderiliyor', pecek: 'gönderilecek' } },
-    { id: 'scribo', conj: '3', lemma: 'scrībō, scrībere, scrīpsī', root: 'scrīb', perf: 'scrīps', tr: 'yazmak',
+    { id: 'scribo', conj: '3', lemma: 'scrībō, scrībere, scrīpsī, scrīptus', root: 'scrīb', perf: 'scrīps', ppp: 'scrīpt', tr: 'yazmak',
       t: { yor: 'yazıyor', ecek: 'yazacak', di: 'yazdı', mis: 'yazmış', pyor: 'yazılıyor', pecek: 'yazılacak' } },
-    { id: 'dico', conj: '3', lemma: 'dīcō, dīcere, dīxī', root: 'dīc', perf: 'dīx', tr: 'söylemek',
+    { id: 'dico', conj: '3', lemma: 'dīcō, dīcere, dīxī, dictus', root: 'dīc', perf: 'dīx', ppp: 'dict', tr: 'söylemek',
       t: { yor: 'söylüyor', ecek: 'söyleyecek', di: 'söyledi', mis: 'söylemiş', pyor: 'söyleniyor', pecek: 'söylenecek' } },
     // 3. çekim -iō
-    { id: 'capio', conj: '3io', lemma: 'capiō, capere, cēpī', root: 'cap', perf: 'cēp', tr: 'almak, yakalamak',
+    { id: 'capio', conj: '3io', lemma: 'capiō, capere, cēpī, captus', root: 'cap', perf: 'cēp', ppp: 'capt', tr: 'almak, yakalamak',
       t: { yor: 'alıyor', ecek: 'alacak', di: 'aldı', mis: 'almış', pyor: 'alınıyor', pecek: 'alınacak' } },
-    { id: 'iacio', conj: '3io', lemma: 'iaciō, iacere, iēcī', root: 'iac', perf: 'iēc', tr: 'atmak, fırlatmak',
+    { id: 'iacio', conj: '3io', lemma: 'iaciō, iacere, iēcī, iactus', root: 'iac', perf: 'iēc', ppp: 'iact', tr: 'atmak, fırlatmak',
       t: { yor: 'atıyor', ecek: 'atacak', di: 'attı', mis: 'atmış', pyor: 'atılıyor', pecek: 'atılacak' } },
-    { id: 'accipio', conj: '3io', lemma: 'accipiō, accipere, accēpī', root: 'accip', perf: 'accēp', tr: 'kabul etmek',
+    { id: 'accipio', conj: '3io', lemma: 'accipiō, accipere, accēpī, acceptus', root: 'accip', perf: 'accēp', ppp: 'accept', tr: 'kabul etmek',
       t: { yor: 'kabul ediyor', ecek: 'kabul edecek', di: 'kabul etti', mis: 'kabul etmiş', pyor: 'kabul ediliyor', pecek: 'kabul edilecek' } },
-    { id: 'rapio', conj: '3io', lemma: 'rapiō, rapere, rapuī', root: 'rap', perf: 'rapu', tr: 'kapmak',
+    { id: 'rapio', conj: '3io', lemma: 'rapiō, rapere, rapuī, raptus', root: 'rap', perf: 'rapu', ppp: 'rapt', tr: 'kapmak',
       t: { yor: 'kapıyor', ecek: 'kapacak', di: 'kaptı', mis: 'kapmış', pyor: 'kapılıyor', pecek: 'kapılacak' } },
-    { id: 'cupio', conj: '3io', lemma: 'cupiō, cupere, cupīvī', root: 'cup', perf: 'cupīv', tr: 'arzulamak',
+    { id: 'cupio', conj: '3io', lemma: 'cupiō, cupere, cupīvī, cupītus', root: 'cup', perf: 'cupīv', ppp: 'cupīt', tr: 'arzulamak',
       t: { yor: 'arzuluyor', ecek: 'arzulayacak', di: 'arzuladı', mis: 'arzulamış', pyor: 'arzulanıyor', pecek: 'arzulanacak' } },
     // 4. çekim
-    { id: 'audio', conj: '4', lemma: 'audiō, audīre, audīvī', root: 'aud', perf: 'audīv', tr: 'duymak',
+    { id: 'audio', conj: '4', lemma: 'audiō, audīre, audīvī, audītus', root: 'aud', perf: 'audīv', ppp: 'audīt', tr: 'duymak',
       t: { yor: 'duyuyor', ecek: 'duyacak', di: 'duydu', mis: 'duymuş', pyor: 'duyuluyor', pecek: 'duyulacak' } },
-    { id: 'invenio', conj: '4', lemma: 'inveniō, invenīre, invēnī', root: 'inven', perf: 'invēn', tr: 'bulmak',
+    { id: 'invenio', conj: '4', lemma: 'inveniō, invenīre, invēnī, inventus', root: 'inven', perf: 'invēn', ppp: 'invent', tr: 'bulmak',
       t: { yor: 'buluyor', ecek: 'bulacak', di: 'buldu', mis: 'bulmuş', pyor: 'bulunuyor', pecek: 'bulunacak' } },
-    { id: 'custodio', conj: '4', lemma: 'custōdiō, custōdīre, custōdīvī', root: 'custōd', perf: 'custōdīv', tr: 'korumak',
+    { id: 'custodio', conj: '4', lemma: 'custōdiō, custōdīre, custōdīvī, custōdītus', root: 'custōd', perf: 'custōdīv', ppp: 'custōdīt', tr: 'korumak',
       t: { yor: 'koruyor', ecek: 'koruyacak', di: 'korudu', mis: 'korumuş', pyor: 'korunuyor', pecek: 'korunacak' } },
-    { id: 'punio', conj: '4', lemma: 'pūniō, pūnīre, pūnīvī', root: 'pūn', perf: 'pūnīv', tr: 'cezalandırmak',
+    { id: 'punio', conj: '4', lemma: 'pūniō, pūnīre, pūnīvī, pūnītus', root: 'pūn', perf: 'pūnīv', ppp: 'pūnīt', tr: 'cezalandırmak',
       t: { yor: 'cezalandırıyor', ecek: 'cezalandıracak', di: 'cezalandırdı', mis: 'cezalandırmış', pyor: 'cezalandırılıyor', pecek: 'cezalandırılacak' } },
-    { id: 'aperio', conj: '4', lemma: 'aperiō, aperīre, aperuī', root: 'aper', perf: 'aperu', tr: 'açmak',
+    { id: 'aperio', conj: '4', lemma: 'aperiō, aperīre, aperuī, apertus', root: 'aper', perf: 'aperu', ppp: 'apert', tr: 'açmak',
       t: { yor: 'açıyor', ecek: 'açacak', di: 'açtı', mis: 'açmış', pyor: 'açılıyor', pecek: 'açılacak' } },
     // Düzensiz
     { id: 'sum', conj: 'irr', lemma: 'sum, esse, fuī', perf: 'fu', tr: 'olmak',
@@ -169,6 +173,12 @@
   // Perfectum gövdesinden kurulan zamanlar
   const MARK_PLPF = ['era', 'erā', 'era', 'erā', 'erā', 'era'];
   const MARK_FUT2 = ['er', 'eri', 'eri', 'eri', 'eri', 'eri'];
+  // Edilgen perfectum sistemi: PPP + -us/-ī + sum'ın praesens / imperfectum / futurum biçimi
+  const AUX = {
+    perf: ['sum', 'es', 'est', 'sumus', 'estis', 'sunt'],
+    plpf: ['eram', 'erās', 'erat', 'erāmus', 'erātis', 'erant'],
+    fut2: ['erō', 'eris', 'erit', 'erimus', 'eritis', 'erunt']
+  };
 
   function seg(t, k) { return { t: t, k: k }; }
   function clean(parts) { return parts.filter(function (p) { return p.t !== ''; }); }
@@ -198,6 +208,9 @@
             return clean([r, seg(THEME_IMPF[c], 'v'), seg(MARK_FUT_B_PAS[i], 'm'), seg(END_PAS_OR[i], 'e')]);
           }
           return clean([r, seg(THEME_FUT_AE[c], 'v'), seg(MARK_FUT_AE_PAS[i], 'm'), seg(END_PAS_R[i], 'e')]);
+        case 'perf': case 'plpf': case 'fut2':
+          // tabloda eril: -us (tekil), -ī (çoğul)
+          return [seg(v.ppp, 'q'), seg(i < 3 ? 'us' : 'ī', 'a'), seg(' ', 'sp'), seg(AUX[tense][i], 'x')];
       }
     }
     return null;
@@ -266,6 +279,11 @@
       if (tense === 'pres') return trYor(t.pyor)[i];
       if (tense === 'impf') return trYordu(t.pyor)[i];
       if (tense === 'fut') return trEcek(t.pecek)[i];
+      // edilgen gövde: "seviliyor" → "sevil"
+      const ps = t.pyor.slice(0, -4);
+      if (tense === 'perf') return trDi(ps + 'd' + v4(ps))[i];
+      if (tense === 'plpf') return trMisti(ps + 'm' + v4(ps) + 'ş')[i];
+      if (tense === 'fut2') return trFut2(ps + 'm' + v4(ps) + 'ş')[i];
       return '';
     }
     switch (tense) {
@@ -328,6 +346,22 @@
       { t: '3.-4. çekim edilgen futurum: regar, regēris, regētur … regentur.', c: ['3', '3io', '4'] },
       { t: 'regeris (praesens, kısa e) ≠ regēris (futurum, uzun ē).', c: ['3'] }
     ],
+    'pas.perf': [
+      'Edilgen perfectum iki kelimedir: participium (PPP) + sum. amātus sum = sevildim.',
+      'Zamanı yardımcı fiil gösterir: sum/es/est… → perfectum. Dikkat: amātus sum „sevildim", „seviliyorum" değil!',
+      'Participium sıfat gibi özneye uyar: amātus (eril), amāta (dişil), amātum (nötr); çoğulda amātī, amātae, amāta. Tabloda eril gösteriliyor.',
+      'PPP gövdesi sözlükteki 4. biçimden gelir: amātus → amāt-, monitus → monit-, rēctus → rēct-.'
+    ],
+    'pas.plpf': [
+      'PPP + sum\'ın imperfectumu (eram, erās…) = edilgen plusquamperfectum: amātus eram „sevilmiştim".',
+      'Etkendeki -era- burada ayrı kelime olarak çıkar: amāveram ↔ amātus eram.',
+      'Cinsiyet: amāta eram (kadın), amātum erat (nötr). Tabloda eril.'
+    ],
+    'pas.fut2': [
+      'PPP + sum\'ın futurumu (erō, eris…) = edilgen futurum II: amātus erō „sevilmiş olacağım".',
+      '3. çoğul amātī erunt (erint değil — burada sum\'ın kendi futurumu kullanılır).',
+      'Cinsiyet: amāta erō (kadın), amātum erit (nötr). Tabloda eril.'
+    ],
     'irr': [
       'sum: su-m, e-s, es-t, su-mus, es-tis, su-nt — ekler tanıdık!',
       'possum = pot- + sum; s\'den önce pot- → pos-: possum, possunt; diğerlerinde pot-: potes, poterat.',
@@ -349,6 +383,13 @@
         if (tense === 'plpf') return 'zaman işareti -era- → plusquamperfectum';
         if (tense === 'fut2') return 'zaman işareti -er(i)- → futurum II';
         return 'zaman işareti';
+      case 'q': return 'participium (PPP) gövdesi → edilgen perfectum sistemi';
+      case 'a': return 'sıfat eki ' + (i < 3 ? '-us → tekil (eril)' : '-ī → çoğul (eril)');
+      case 'x': {
+        const which = { perf: 'sum\'ın praesensi → perfectum', plpf: 'sum\'ın imperfectumu → plusquamperfectum',
+                        fut2: 'sum\'ın futurumu → futurum II' }[tense];
+        return 'yardımcı fiil: ' + which + '; kişiyi gösterir → ' + pr.label + ' (' + pr.short + ')';
+      }
       case 'e': {
         const kind = voice === 'pas' ? 'edilgen kişi eki' : (tense === 'perf' ? 'perfectum kişi eki' : 'kişi eki');
         return kind + ' → ' + pr.label + ' (' + pr.short + ')';

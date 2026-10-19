@@ -75,6 +75,34 @@ const REF = {
     'act.plpf': 'potueram potuerās potuerat potuerāmus potuerātis potuerant',
     'act.fut2': 'potuerō potueris potuerit potuerimus potueritis potuerint'
   },
+  // Edilgen perfectum sistemi (PPP + sum); iki kelimelik biçimler '_' ile birleştirildi
+  amo_pp: {
+    'pas.perf': 'amātus_sum amātus_es amātus_est amātī_sumus amātī_estis amātī_sunt',
+    'pas.plpf': 'amātus_eram amātus_erās amātus_erat amātī_erāmus amātī_erātis amātī_erant',
+    'pas.fut2': 'amātus_erō amātus_eris amātus_erit amātī_erimus amātī_eritis amātī_erunt'
+  },
+  moneo_pp: {
+    'pas.perf': 'monitus_sum monitus_es monitus_est monitī_sumus monitī_estis monitī_sunt',
+    'pas.plpf': 'monitus_eram monitus_erās monitus_erat monitī_erāmus monitī_erātis monitī_erant',
+    'pas.fut2': 'monitus_erō monitus_eris monitus_erit monitī_erimus monitī_eritis monitī_erunt'
+  },
+  rego_pp: {
+    'pas.perf': 'rēctus_sum rēctus_es rēctus_est rēctī_sumus rēctī_estis rēctī_sunt',
+    'pas.plpf': 'rēctus_eram rēctus_erās rēctus_erat rēctī_erāmus rēctī_erātis rēctī_erant',
+    'pas.fut2': 'rēctus_erō rēctus_eris rēctus_erit rēctī_erimus rēctī_eritis rēctī_erunt'
+  },
+  capio_pp: {
+    'pas.perf': 'captus_sum captus_es captus_est captī_sumus captī_estis captī_sunt',
+    'pas.plpf': 'captus_eram captus_erās captus_erat captī_erāmus captī_erātis captī_erant',
+    'pas.fut2': 'captus_erō captus_eris captus_erit captī_erimus captī_eritis captī_erunt'
+  },
+  audio_pp: {
+    'pas.perf': 'audītus_sum audītus_es audītus_est audītī_sumus audītī_estis audītī_sunt',
+    'pas.plpf': 'audītus_eram audītus_erās audītus_erat audītī_erāmus audītī_erātis audītī_erant',
+    'pas.fut2': 'audītus_erō audītus_eris audītus_erit audītī_erimus audītī_eritis audītī_erunt'
+  },
+  video_pp: { 'pas.perf': 'vīsus_sum vīsus_es vīsus_est vīsī_sumus vīsī_estis vīsī_sunt' },
+  mitto_pp: { 'pas.plpf': 'missus_eram missus_erās missus_erat missī_erāmus missī_erātis missī_erant' },
   // Ek fiiller: her birinden birkaç ayırt edici biçim
   laudo: { 'act.pres': 'laudō laudās laudat laudāmus laudātis laudant', 'act.perf': 'laudāvī laudāvistī laudāvit laudāvimus laudāvistis laudāvērunt' },
   voco: { 'act.fut': 'vocābō vocābis vocābit vocābimus vocābitis vocābunt', 'pas.pres': 'vocor vocāris vocātur vocāmur vocāminī vocantur' },
@@ -106,17 +134,21 @@ const TR = [
   ['capio', 'act.plpf', 5, 'almışlardı'], ['laudo', 'act.perf', 4, 'övdünüz'], ['laudo', 'act.plpf', 1, 'övmüştün'],
   ['teneo', 'act.perf', 4, 'tuttunuz'], ['teneo', 'act.plpf', 3, 'tutmuştuk'], ['dico', 'act.fut', 3, 'söyleyeceğiz'],
   ['accipio', 'act.fut', 0, 'kabul edeceğim'], ['rego', 'pas.fut', 2, 'yönetilecek'], ['audio', 'pas.impf', 5, 'duyuluyorlardı'],
+  ['amo', 'pas.perf', 0, 'sevildim'], ['amo', 'pas.plpf', 0, 'sevilmiştim'], ['amo', 'pas.fut2', 0, 'sevilmiş olacağım'],
+  ['amo', 'pas.perf', 5, 'sevildiler'], ['capio', 'pas.plpf', 4, 'alınmıştınız'], ['laudo', 'pas.perf', 4, 'övüldünüz'],
+  ['dico', 'pas.perf', 3, 'söylendik'], ['terreo', 'pas.fut2', 5, 'korkutulmuş olacaklar'],
   ['sum', 'act.fut', 0, 'olacağım'], ['sum', 'act.perf', 5, 'oldular'], ['possum', 'act.pres', 0, 'yapabilirim']
 ];
 
 let fail = 0, ok = 0;
 const byId = Object.fromEntries(L.VERBS.map(v => [v.id, v]));
-for (const [id, tables] of Object.entries(REF)) {
+for (const [rid, tables] of Object.entries(REF)) {
+  const id = rid.replace(/_pp$/, '');
   const v = byId[id];
   if (!v) { console.log('Fiil yok:', id); fail++; continue; }
   for (const [key, ref] of Object.entries(tables)) {
     const [voice, tense] = key.split('.');
-    const exp = ref.split(' ');
+    const exp = ref.split(' ').map(x => x.replace('_', ' '));
     for (let i = 0; i < 6; i++) {
       const got = L.joinForm(L.form(v, voice, tense, i));
       if (got !== exp[i]) { console.log(`HATA ${id} ${key} ${L.PERSONS[i].id}: ${got} ≠ ${exp[i]}`); fail++; } else ok++;

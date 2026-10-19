@@ -16,6 +16,9 @@
   --c-vowel: #6b7280;
   --c-mark: #c2410c;
   --c-end: #047857;
+  --c-ppp: #0e7490;
+  --c-adj: #be185d;
+  --c-aux: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -35,6 +38,9 @@
     --c-vowel: #a1a1aa;
     --c-mark: #fb923c;
     --c-end: #34d399;
+    --c-ppp: #22d3ee;
+    --c-adj: #f472b6;
+    --c-aux: #a3e635;
   }
 }
 
@@ -118,6 +124,9 @@ input[type=text]:focus, select:focus { outline: 2px solid var(--accent); outline
 .s-v { color: var(--c-vowel); }
 .s-m { color: var(--c-mark); font-weight: 700; }
 .s-e { color: var(--c-end); font-weight: 700; }
+.s-q { color: var(--c-ppp); font-weight: 600; }
+.s-a { color: var(--c-adj); font-weight: 700; }
+.s-x { color: var(--c-aux); font-style: italic; font-weight: 600; }
 .split .s + .s::before { content: "·"; color: var(--line); margin: 0 1px; font-weight: 400; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; }
@@ -149,8 +158,7 @@ table.conj td.tr { color: var(--muted); }
 .prompt-line { text-align: center; margin-bottom: 10px; }
 .q-label { font-size: .8rem; color: var(--muted); margin-top: 8px; }
 .answer-row { display: flex; gap: 8px; align-items: center; }
-.answer-row .prefix { font-family: Georgia, serif; font-size: 1.3rem; color: var(--c-root); white-space: nowrap; }
-.answer-row .prefix.perf { color: var(--c-perf); }
+.answer-row .prefix { font-family: Georgia, serif; font-size: 1.3rem; white-space: nowrap; }
 .answer-row input { font-size: 1.15rem; }
 
 .feedback { border-radius: 10px; padding: 12px; margin-top: 12px; }

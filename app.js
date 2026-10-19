@@ -75,27 +75,30 @@
   }
   function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+  function partHTML(p, cls) {
+    // iki kelimelik biçimlerde boşluk: .s olmadığı için ayırıcı nokta da çıkmaz
+    return p.k === 'sp' ? '<span class="gap"> </span>' : '<span class="' + cls + 's-' + p.k + '">' + esc(p.t) + '</span>';
+  }
   function segHTML(parts, split) {
     return '<span class="lat' + (split ? ' split' : '') + '">' + parts.map(function (p) {
-      return '<span class="s s-' + p.k + '">' + esc(p.t) + '</span>';
+      return partHTML(p, 's ');
     }).join('') + '</span>';
   }
-  // Kökten sonraki kısım (ek)
+  // Kökten / gövdeden sonraki kısım (ek)
   function stemPart(parts) {
     let i = 0;
-    while (i < parts.length && (parts[i].k === 'r' || parts[i].k === 'p')) i++;
+    while (i < parts.length && (parts[i].k === 'r' || parts[i].k === 'p' || parts[i].k === 'q')) i++;
     return { stem: parts.slice(0, i), rest: parts.slice(i) };
   }
   function endingHTML(parts) {
     const rest = stemPart(parts).rest;
-    return rest.length ? '<span class="lat">-' + rest.map(function (p) {
-      return '<span class="s-' + p.k + '">' + esc(p.t) + '</span>';
-    }).join('') + '</span>' : '';
+    return rest.length ? '<span class="lat">-' + rest.map(function (p) { return partHTML(p, ''); }).join('') + '</span>' : '';
   }
 
   const LEGEND = '<div class="legend">' +
     '<span class="s-r">kök</span><span class="s-p">perfectum gövdesi</span>' +
-    '<span class="s-v">tema ünlüsü</span><span class="s-m">zaman işareti</span><span class="s-e">kişi eki</span></div>';
+    '<span class="s-v">tema ünlüsü</span><span class="s-m">zaman işareti</span><span class="s-e">kişi eki</span>' +
+    '<span class="s-q">participium gövdesi</span><span class="s-a">sıfat eki</span><span class="s-x">yardımcı fiil</span></div>';
 
   function toast(msg) {
     const t = document.getElementById('toast');
@@ -105,17 +108,20 @@
   }
 
   /* ---------- Aşamalar ---------- */
-  function maxStage() { return S.unlockAll ? 5 : S.stage; }
+  const LAST_STAGE = L.STAGES.length;
+  const IRR_STAGE = 5;
+  function maxStage() { return S.unlockAll ? LAST_STAGE : S.stage; }
+  function perfSystem(tense) { return tense === 'perf' || tense === 'plpf' || tense === 'fut2'; }
   function stageOfTense(tk) {
     const p = tk.split('.');
-    if (p[0] === 'pas') return 4;
-    if (p[1] === 'perf' || p[1] === 'plpf' || p[1] === 'fut2') return 3;
+    if (p[0] === 'pas') return perfSystem(p[1]) ? 6 : 4;
+    if (perfSystem(p[1])) return 3;
     if (p[1] === 'pres') return 1;
     return 2;
   }
   function stageOfKey(key) {
     const p = key.split('.');
-    return p[3] === 'cirr' ? 5 : stageOfTense(p[0] + '.' + p[1]);
+    return p[3] === 'cirr' ? IRR_STAGE : stageOfTense(p[0] + '.' + p[1]);
   }
   function parseKey(key) {
     const p = key.split('.');
@@ -125,11 +131,11 @@
   // Fiile göre açık zamanlar
   function openTenses(v) {
     if (v.conj === 'irr') {
-      return maxStage() >= 5 ? L.TENSE_KEYS.filter(function (k) { return k.indexOf('act.') === 0; }) : [];
+      return maxStage() >= IRR_STAGE ? L.TENSE_KEYS.filter(function (k) { return k.indexOf('act.') === 0; }) : [];
     }
     return L.TENSE_KEYS.filter(function (k) { return stageOfTense(k) <= maxStage(); });
   }
-  function openVerbs() { return maxStage() >= 5 ? L.VERBS : REGULAR; }
+  function openVerbs() { return maxStage() >= IRR_STAGE ? L.VERBS : REGULAR; }
 
   function verbOptions(selected) {
     const groups = {};
@@ -155,7 +161,8 @@
     const pres = v.conj === 'irr' ? '' :
       '<div>Şimdiki zaman kökü: <span class="lat s-r">' + esc(v.root) + '-</span></div>';
     return '<div class="stems"><div class="muted">' + esc(v.lemma) + ' · <i>' + esc(v.tr) + '</i></div>' + pres +
-      '<div>Perfectum gövdesi: <span class="lat s-p">' + esc(v.perf) + '-</span></div></div>';
+      '<div>Perfectum gövdesi: <span class="lat s-p">' + esc(v.perf) + '-</span></div>' +
+      (v.ppp ? '<div>Participium (PPP) gövdesi: <span class="lat s-q">' + esc(v.ppp) + '-</span></div>' : '') + '</div>';
   }
 
   /* ---------- Ekran 1: Ek tablosu ---------- */
@@ -176,7 +183,7 @@
     }).join('');
 
     const tips = tipsFor(v, tk);
-    const locked = maxStage() < 5 ? '<p class="small muted">Diğer zamanlar sonraki aşamalarda açılır (İlerleme ekranı).</p>' : '';
+    const locked = maxStage() < LAST_STAGE ? '<p class="small muted">Diğer zamanlar sonraki aşamalarda açılır (İlerleme ekranı).</p>' : '';
 
     view.innerHTML =
       '<div class="card"><div class="controls">' +
@@ -201,12 +208,12 @@
 
   function conjFilter() {
     const f = S.prefs.conj;
-    if (f === 'irr' && maxStage() < 5) return 'all';
+    if (f === 'irr' && maxStage() < IRR_STAGE) return 'all';
     return f;
   }
   function poolKeys() {
     const f = conjFilter();
-    const groups = f === 'all' ? CONJ_GROUPS.concat(maxStage() >= 5 ? ['irr'] : []) : [f];
+    const groups = f === 'all' ? CONJ_GROUPS.concat(maxStage() >= IRR_STAGE ? ['irr'] : []) : [f];
     const keys = [];
     groups.forEach(function (g) {
       const tenses = g === 'irr' ? IRR_TENSES.map(function (t) { return 'act.' + t; })
@@ -248,7 +255,7 @@
     return p.right >= UNLOCK_RIGHT && p.recentN >= UNLOCK_WINDOW && p.acc >= UNLOCK_ACC;
   }
   function checkUnlock() {
-    while (S.stage < 5 && stageReady(S.stage)) {
+    while (S.stage < LAST_STAGE && stageReady(S.stage)) {
       S.stage++;
       toast('🎉 Yeni aşama açıldı: ' + L.STAGES[S.stage - 1].title);
     }
@@ -267,7 +274,7 @@
     let opts = [['all', 'Tüm çekimler']].concat(Object.keys(L.CONJ).map(function (c) {
       return [c, L.CONJ[c].name + ' (' + L.CONJ[c].model + ')'];
     }));
-    if (maxStage() >= 5) opts.push(['irr', 'Sadece sum / possum']);
+    if (maxStage() >= IRR_STAGE) opts.push(['irr', 'Sadece sum / possum']);
     return '<label>Çekim<select id="conj-filter">' + opts.map(function (o) {
       return '<option value="' + o[0] + '"' + (o[0] === f ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
     }).join('') + '</select></label>';
@@ -277,7 +284,7 @@
   }
 
   function partsExplainHTML(item) {
-    return '<ul class="parts">' + item.parts.map(function (p) {
+    return '<ul class="parts">' + item.parts.filter(function (p) { return p.k !== 'sp'; }).map(function (p) {
       return '<li><span class="lat s-' + p.k + '">' + esc(p.t) + '</span> ' +
         esc(L.explainPart(p, item.v, item.voice, item.tense, item.i)) + '</li>';
     }).join('') + '</ul>';
@@ -445,7 +452,8 @@
     const mode = it.v.conj === 'irr' ? 'full' : S.prefs.writeMode;
     const sp = stemPart(it.parts);
     const prefix = sp.stem.map(function (p) { return p.t; }).join('');
-    const perf = sp.stem.length && sp.stem[0].k === 'p';
+    const stemKind = sp.stem.length ? sp.stem[0].k : 'r';
+    const periphrastic = it.voice === 'pas' && perfSystem(it.tense);
 
     const modeSwitch = '<div class="seg-switch">' +
       '<button data-mode="full" class="' + (S.prefs.writeMode === 'full' ? 'sel' : '') + '">Tam biçim</button>' +
@@ -460,9 +468,9 @@
       '<div class="prompt-line"><b>' + esc(itemLabel(it)) + '</b></div>' +
       '<div class="prompt-line muted small">„' + esc(L.meaning(it.v, it.voice, it.tense, it.i)) + '"</div>' +
       '<div class="answer-row">' +
-      (mode === 'end' ? '<span class="prefix' + (perf ? ' perf' : '') + '">' + esc(prefix) + '-</span>' : '') +
+      (mode === 'end' ? '<span class="prefix s-' + stemKind + '">' + esc(prefix) + '-</span>' : '') +
       '<input type="text" id="w-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ' +
-      'placeholder="' + (mode === 'end' ? 'eki yaz' : 'biçimi yaz') + '" value="' + esc(W.input) + '"' + (W.done ? ' disabled' : '') + '>' +
+      'placeholder="' + (mode === 'end' ? (periphrastic ? 'ek + sum biçimi' : 'eki yaz') : (periphrastic ? 'iki kelime' : 'biçimi yaz')) + '" value="' + esc(W.input) + '"' + (W.done ? ' disabled' : '') + '>' +
       (W.done ? '' : '<button id="w-check" class="btn primary">Kontrol</button>') + '</div>' +
       '<p class="small muted" style="margin:6px 0 0">Makron (ā, ē…) yazmak zorunlu değil.</p>' +
       (W.done ? feedbackWrite(mode, sp) : '') + '</div>';
@@ -560,7 +568,7 @@
     const stages = L.STAGES.map(function (st) {
       const open = st.n <= ms;
       let extra = '';
-      if (st.n === S.stage && S.stage < 5 && !S.unlockAll) {
+      if (st.n === S.stage && S.stage < LAST_STAGE && !S.unlockAll) {
         const p = stageProgress(st.n);
         extra = '<div class="small" style="margin-top:6px">Sonraki aşama için: ' + Math.min(p.right, UNLOCK_RIGHT) + '/' + UNLOCK_RIGHT +
           ' doğru, son ' + UNLOCK_WINDOW + ' cevapta en az %' + (UNLOCK_ACC * 100) + ' başarı (şu an: ' +
@@ -580,7 +588,7 @@
       const p = tk.split('.');
       grid += gridRow(L.TENSES[p[1]].abbr + (p[0] === 'pas' ? ' ed.' : ''), tk, groups);
     });
-    if (ms >= 5 && gf === 'all') {
+    if (ms >= IRR_STAGE && gf === 'all') {
       IRR_TENSES.forEach(function (t) { grid += gridRow('sum ' + L.TENSES[t].abbr, 'act.' + t, ['irr']); });
     }
     grid += '</tbody></table>';
@@ -620,7 +628,7 @@
     view.innerHTML =
       '<div class="card"><h2>Aşamalar</h2>' + stages +
       '<div class="btn-row" style="margin-top:10px">' +
-      (S.stage < 5 && !S.unlockAll ? '<button id="p-next" class="btn">Sonraki aşamayı şimdi aç</button>' : '') +
+      (S.stage < LAST_STAGE && !S.unlockAll ? '<button id="p-next" class="btn">Sonraki aşamayı şimdi aç</button>' : '') +
       '<button id="p-all" class="btn">' + (S.unlockAll ? 'Kilitleri geri getir' : 'Tüm aşamaları aç') + '</button></div></div>' +
       '<div class="card"><h2>Zaman × kişi</h2><p class="small muted" style="margin-top:0">Doğru / toplam. Kırmızıya yakın = zorlandığın yer. ' +
       'T = tekil, Ç = çoğul; „ed." = edilgen, „sum" = sum/possum.</p>' + gridFilter +
