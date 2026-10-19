@@ -17,12 +17,13 @@
   ];
 
   const TENSES = {
-    pres: { name: 'Praesens', tr: 'şimdiki zaman' },
-    impf: { name: 'Imperfectum', tr: 'geçmişte süregelen' },
-    fut: { name: 'Futurum I', tr: 'gelecek zaman' },
-    perf: { name: 'Perfectum', tr: 'geçmiş (tamamlanmış)' },
-    plpf: { name: 'Plusquamperfectum', tr: 'geçmişten önceki geçmiş' },
-    fut2: { name: 'Futurum II', tr: 'gelecekte tamamlanmış' }
+    pres: { name: 'Praesens', abbr: 'Praes.', tr: 'şimdiki zaman' },
+    impf: { name: 'Imperfectum', abbr: 'Impf.', tr: 'geçmişte süregelen' },
+    fut: { name: 'Futurum I', abbr: 'Fut. I', tr: 'gelecek zaman' },
+    perf: { name: 'Perfectum', abbr: 'Perf.', tr: 'geçmiş (tamamlanmış)' },
+    // ­: dar ekranda kelime buradan bölünebilsin
+    plpf: { name: 'Plusquam­perfectum', abbr: 'Plpf.', tr: 'geçmişten önceki geçmiş' },
+    fut2: { name: 'Futurum II', abbr: 'Fut. II', tr: 'gelecekte tamamlanmış' }
   };
 
   const VOICES = { act: 'etken', pas: 'edilgen', irr: 'düzensiz' };

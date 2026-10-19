@@ -471,7 +471,7 @@
     return 'hsla(' + Math.round(acc * 130) + ', 70%, 50%, .28)';
   }
   function gridRow(label, prefix) {
-    return '<tr><th>' + esc(label) + '</th>' + L.PERSONS.map(function (pr) {
+    return '<tr><th style="white-space:nowrap">' + esc(label) + '</th>' + L.PERSONS.map(function (pr) {
       const st = S.stats[prefix + '.' + pr.id];
       if (!st) return '<td class="none">·</td>';
       const n = st.right + st.wrong;
@@ -500,9 +500,9 @@
     }).join('') + '</tr></thead><tbody>';
     L.TENSE_KEYS.filter(function (k) { return stageOfTense(k) <= ms; }).forEach(function (tk) {
       const p = tk.split('.');
-      grid += gridRow(L.tenseLabel(p[0], p[1]), tk);
+      grid += gridRow(L.TENSES[p[1]].abbr + (p[0] === 'pas' ? ' ed.' : ''), tk);
     });
-    if (ms >= 5) IRR_TENSES.forEach(function (t) { grid += gridRow('sum/possum ' + L.TENSES[t].name, 'irr.' + t); });
+    if (ms >= 5) IRR_TENSES.forEach(function (t) { grid += gridRow('sum ' + L.TENSES[t].abbr, 'irr.' + t); });
     grid += '</tbody></table>';
 
     const hard = Object.keys(S.stats).filter(function (k) { return S.stats[k].wrong > 0; })
@@ -540,7 +540,7 @@
       (S.stage < 5 && !S.unlockAll ? '<button id="p-next" class="btn">Sonraki aşamayı şimdi aç</button>' : '') +
       '<button id="p-all" class="btn">' + (S.unlockAll ? 'Kilitleri geri getir' : 'Tüm aşamaları aç') + '</button></div></div>' +
       '<div class="card"><h2>Zaman × kişi</h2><p class="small muted" style="margin-top:0">Doğru / toplam. Kırmızıya yakın = zorlandığın yer. ' +
-      'T = tekil, Ç = çoğul.</p><div style="overflow-x:auto">' + grid + '</div></div>' +
+      'T = tekil, Ç = çoğul; „ed." = edilgen, „sum" = sum/possum.</p><div style="overflow-x:auto">' + grid + '</div></div>' +
       '<div class="card"><h2>En çok zorlananlar</h2>' + hardHTML + '</div>' +
       '<div class="card"><h2>Çekimlere göre</h2>' + conjHTML +
       '<p class="small muted">Toplam ' + total + ' cevap' + (total ? ', %' + Math.round(100 * okAll / total) + ' doğru' : '') + '.</p>' +
