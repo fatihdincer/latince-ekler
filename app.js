@@ -3,14 +3,40 @@
   const L = window.LATIN;
 
   /* ---------- Durum (localStorage) ---------- */
-  const STORE_KEY = 'latinceEkler.v1';
+  // Kutu ağırlıkları: kutu 0 = son cevabı yanlış olan kart
+  const BOX_WEIGHT = [20, 6, 3, 2, 1, 0.5];
+  const NEW_WEIGHT = 4;
+  const STORE_KEY = 'latinceEkler.v2';
+  const OLD_STORE_KEY = 'latinceEkler.v1';
+  // Kart anahtarı: çatı.zaman.kişi.çekim  (ör. act.fut.3s.c3, act.pres.1s.cirr)
   function defaultState() {
     return {
       stage: 1, unlockAll: false,
       stats: {},      // anahtar → {box, right, wrong, last}
       history: [],    // {k, ok, c}
-      prefs: { tab: 'tablo', writeMode: 'full', conj: 'all', tableVerb: 'amo', tableTense: 'act.pres', cmpVerb: 'amo', cmpPer: 0 }
+      prefs: { tab: 'tablo', writeMode: 'full', conj: 'all', gridConj: 'all', tableVerb: 'amo', tableTense: 'act.pres', cmpVerb: 'amo', cmpPer: 0 }
     };
+  }
+  function applyAnswer(stats, key, ok) {
+    const st = stats[key] || (stats[key] = { box: 0, right: 0, wrong: 0 });
+    if (ok) { st.right++; st.box = Math.min(BOX_WEIGHT.length - 1, st.box + 1); }
+    else { st.wrong++; st.box = 0; }
+    return st;
+  }
+  // v1 kaydında anahtarda çekim yoktu. Geçmişte çekim (c) tutulduğu için
+  // anahtarları geçmişten yeniden kurup kartları baştan oynatıyoruz.
+  function migrateV1(old) {
+    const d = defaultState();
+    d.stage = old.stage || 1;
+    d.unlockAll = !!old.unlockAll;
+    d.prefs = Object.assign(d.prefs, old.prefs || {});
+    (old.history || []).forEach(function (h) {
+      if (!h || !h.k || !h.c) return;
+      const k = h.k.indexOf('irr.') === 0 ? 'act.' + h.k.slice(4) + '.cirr' : h.k + '.c' + h.c;
+      d.history.push({ k: k, ok: h.ok ? 1 : 0, c: h.c });
+      applyAnswer(d.stats, k, h.ok);
+    });
+    return d;
   }
   function load() {
     try {
@@ -19,6 +45,13 @@
         const s = JSON.parse(raw);
         const d = defaultState();
         return Object.assign(d, s, { prefs: Object.assign(d.prefs, s.prefs || {}) });
+      }
+      const old = localStorage.getItem(OLD_STORE_KEY);
+      if (old) {
+        const m = migrateV1(JSON.parse(old));
+        localStorage.setItem(STORE_KEY, JSON.stringify(m));
+        localStorage.removeItem(OLD_STORE_KEY);
+        return m;
       }
     } catch (e) { /* bozuk kayıt: sıfırdan başla */ }
     return defaultState();
@@ -33,6 +66,8 @@
   const VERB = Object.fromEntries(L.VERBS.map(function (v) { return [v.id, v]; }));
   const REGULAR = L.VERBS.filter(function (v) { return v.conj !== 'irr'; });
   const IRREGULAR = L.VERBS.filter(function (v) { return v.conj === 'irr'; });
+  const CONJ_GROUPS = Object.keys(L.CONJ);   // 1, 2, 3, 3io, 4
+  const MODEL = { '1': 'amo', '2': 'moneo', '3': 'rego', '3io': 'capio', '4': 'audio', irr: 'sum' };
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
@@ -78,7 +113,13 @@
     return 2;
   }
   function stageOfKey(key) {
-    return key.indexOf('irr.') === 0 ? 5 : stageOfTense(key.split('.').slice(0, 2).join('.'));
+    const p = key.split('.');
+    return p[3] === 'cirr' ? 5 : stageOfTense(p[0] + '.' + p[1]);
+  }
+  function parseKey(key) {
+    const p = key.split('.');
+    return { voice: p[0], tense: p[1], tk: p[0] + '.' + p[1], conj: p[3].slice(1),
+             i: L.PERSONS.findIndex(function (x) { return x.id === p[2]; }) };
   }
   // Fiile göre açık zamanlar
   function openTenses(v) {
@@ -152,10 +193,8 @@
   }
 
   /* ---------- Aralıklı tekrar (Leitner kutuları) ----------
-   * Her zaman+kişi birleşimi bir "kart". Doğru → bir üst kutu, yanlış → kutu 0.
+   * Her zaman+kişi+çekim birleşimi bir "kart". Doğru → bir üst kutu, yanlış → kutu 0.
    * Düşük kutudaki kartların seçilme ağırlığı yüksek: yanlışlar daha sık gelir. */
-  const BOX_WEIGHT = [8, 5, 3, 2, 1, 0.5];
-  const NEW_WEIGHT = 6;
   const UNLOCK_RIGHT = 15, UNLOCK_WINDOW = 20, UNLOCK_ACC = 0.75;
   const IRR_TENSES = ['pres', 'impf', 'fut', 'perf', 'plpf', 'fut2'];
 
@@ -166,15 +205,15 @@
   }
   function poolKeys() {
     const f = conjFilter();
+    const groups = f === 'all' ? CONJ_GROUPS.concat(maxStage() >= 5 ? ['irr'] : []) : [f];
     const keys = [];
-    if (f !== 'irr') {
-      L.TENSE_KEYS.filter(function (k) { return stageOfTense(k) <= maxStage(); }).forEach(function (tk) {
-        L.PERSONS.forEach(function (p) { keys.push(tk + '.' + p.id); });
+    groups.forEach(function (g) {
+      const tenses = g === 'irr' ? IRR_TENSES.map(function (t) { return 'act.' + t; })
+        : L.TENSE_KEYS.filter(function (k) { return stageOfTense(k) <= maxStage(); });
+      tenses.forEach(function (tk) {
+        L.PERSONS.forEach(function (p) { keys.push(tk + '.' + p.id + '.c' + g); });
       });
-    }
-    if (maxStage() >= 5 && (f === 'all' || f === 'irr')) {
-      IRR_TENSES.forEach(function (t) { L.PERSONS.forEach(function (p) { keys.push('irr.' + t + '.' + p.id); }); });
-    }
+    });
     return keys;
   }
   function weight(key) { const st = S.stats[key]; return st ? BOX_WEIGHT[st.box] : NEW_WEIGHT; }
@@ -187,16 +226,10 @@
     let r = Math.random() * total, key = keys[keys.length - 1];
     for (let j = 0; j < keys.length; j++) { r -= weight(keys[j]); if (r <= 0) { key = keys[j]; break; } }
     lastKey = key;
-    const p = key.split('.');
-    const i = L.PERSONS.findIndex(function (x) { return x.id === p[2]; });
-    let v;
-    if (p[0] === 'irr') v = rand(IRREGULAR);
-    else {
-      const f = conjFilter();
-      v = rand(f === 'all' ? REGULAR : REGULAR.filter(function (x) { return x.conj === f; }));
-    }
-    const voice = p[0] === 'irr' ? 'act' : p[0];
-    return { key: key, voice: voice, tense: p[1], tk: voice + '.' + p[1], i: i, v: v, parts: L.form(v, voice, p[1], i) };
+    // önce kart, sonra o çekimden rastgele fiil
+    const k = parseKey(key);
+    const v = rand(k.conj === 'irr' ? IRREGULAR : REGULAR.filter(function (x) { return x.conj === k.conj; }));
+    return { key: key, voice: k.voice, tense: k.tense, tk: k.tk, i: k.i, v: v, parts: L.form(v, k.voice, k.tense, k.i) };
   }
 
   function stageProgress(n) {
@@ -221,10 +254,7 @@
     updateBadge();
   }
   function record(item, ok) {
-    const st = S.stats[item.key] || (S.stats[item.key] = { box: 0, right: 0, wrong: 0 });
-    if (ok) { st.right++; st.box = Math.min(BOX_WEIGHT.length - 1, st.box + 1); }
-    else { st.wrong++; st.box = 0; }
-    st.last = Date.now();
+    applyAnswer(S.stats, item.key, ok).last = Date.now();
     S.history.push({ k: item.key, ok: ok ? 1 : 0, c: item.v.conj });
     if (S.history.length > 1000) S.history.splice(0, S.history.length - 1000);
     checkUnlock();
@@ -461,22 +491,26 @@
   }
 
   /* ---------- Ekran 5: İlerleme ---------- */
+  function conjName(c) { return c === 'irr' ? 'sum/possum' : L.CONJ[c].name; }
   function keyLabel(key) {
-    const p = key.split('.');
-    const pr = L.PERSONS.find(function (x) { return x.id === p[2]; });
-    const t = p[0] === 'irr' ? 'sum/possum ' + L.TENSES[p[1]].name : L.tenseLabel(p[0], p[1]);
-    return t + ', ' + pr.label;
+    const k = parseKey(key);
+    return L.tenseLabel(k.voice, k.tense) + ', ' + L.PERSONS[k.i].label + ' — ' + conjName(k.conj);
   }
   function accColor(acc) {
     return 'hsla(' + Math.round(acc * 130) + ', 70%, 50%, .28)';
   }
-  function gridRow(label, prefix) {
+  // Satır: zaman; hücre: seçili çekim gruplarının toplamı
+  function gridRow(label, tk, groups) {
     return '<tr><th style="white-space:nowrap">' + esc(label) + '</th>' + L.PERSONS.map(function (pr) {
-      const st = S.stats[prefix + '.' + pr.id];
-      if (!st) return '<td class="none">·</td>';
-      const n = st.right + st.wrong;
-      return '<td style="background:' + accColor(st.right / n) + '" title="' + st.right + ' doğru, ' + st.wrong + ' yanlış">' +
-        st.right + '/' + n + '</td>';
+      let right = 0, wrong = 0;
+      groups.forEach(function (g) {
+        const st = S.stats[tk + '.' + pr.id + '.c' + g];
+        if (st) { right += st.right; wrong += st.wrong; }
+      });
+      const n = right + wrong;
+      if (!n) return '<td class="none">·</td>';
+      return '<td style="background:' + accColor(right / n) + '" title="' + right + ' doğru, ' + wrong + ' yanlış">' +
+        right + '/' + n + '</td>';
     }).join('') + '</tr>';
   }
   function renderProgress() {
@@ -498,12 +532,20 @@
     let grid = '<table class="grid"><thead><tr><th></th>' + L.PERSONS.map(function (p) {
       return '<th style="text-align:center">' + p.id.replace('s', 'T').replace('p', 'Ç') + '</th>';
     }).join('') + '</tr></thead><tbody>';
+    const gf = S.prefs.gridConj || 'all';
+    const groups = gf === 'all' ? CONJ_GROUPS : [gf];
     L.TENSE_KEYS.filter(function (k) { return stageOfTense(k) <= ms; }).forEach(function (tk) {
       const p = tk.split('.');
-      grid += gridRow(L.TENSES[p[1]].abbr + (p[0] === 'pas' ? ' ed.' : ''), tk);
+      grid += gridRow(L.TENSES[p[1]].abbr + (p[0] === 'pas' ? ' ed.' : ''), tk, groups);
     });
-    if (ms >= 5) IRR_TENSES.forEach(function (t) { grid += gridRow('sum ' + L.TENSES[t].abbr, 'irr.' + t); });
+    if (ms >= 5 && gf === 'all') {
+      IRR_TENSES.forEach(function (t) { grid += gridRow('sum ' + L.TENSES[t].abbr, 'act.' + t, ['irr']); });
+    }
     grid += '</tbody></table>';
+    const gridFilter = '<div class="seg-switch" style="margin-bottom:8px">' +
+      [['all', 'Tümü']].concat(CONJ_GROUPS.map(function (c) { return [c, c === '3io' ? '3-iō' : c]; })).map(function (o) {
+        return '<button data-gconj="' + o[0] + '" class="' + (o[0] === gf ? 'sel' : '') + '">' + o[1] + '</button>';
+      }).join('') + '</div>';
 
     const hard = Object.keys(S.stats).filter(function (k) { return S.stats[k].wrong > 0; })
       .sort(function (a, b) {
@@ -512,11 +554,10 @@
       }).slice(0, 8);
     const hardHTML = hard.length ? '<ul class="tips">' + hard.map(function (k) {
       const st = S.stats[k];
-      const p = k.split('.');
-      const v = p[0] === 'irr' ? VERB.sum : VERB.amo;
-      const voice = p[0] === 'irr' ? 'act' : p[0];
-      const i = L.PERSONS.findIndex(function (x) { return x.id === p[2]; });
-      return '<li>' + esc(keyLabel(k)) + ' — örn. ' + segHTML(L.form(v, voice, p[1], i), false) +
+      const p = parseKey(k);
+      // örnek: kartın kendi çekiminin model fiili
+      const f = L.form(VERB[MODEL[p.conj]], p.voice, p.tense, p.i);
+      return '<li>' + esc(keyLabel(k)) + ' — örn. ' + segHTML(f, false) +
         ' <span class="small muted">(' + st.wrong + ' yanlış, ' + st.right + ' doğru)</span></li>';
     }).join('') + '</ul><p class="small muted">Bunlar alıştırmalarda daha sık sorulur.</p>'
       : '<p class="muted">Henüz hata yok. Alıştırma yaptıkça burada görünür.</p>';
@@ -540,12 +581,16 @@
       (S.stage < 5 && !S.unlockAll ? '<button id="p-next" class="btn">Sonraki aşamayı şimdi aç</button>' : '') +
       '<button id="p-all" class="btn">' + (S.unlockAll ? 'Kilitleri geri getir' : 'Tüm aşamaları aç') + '</button></div></div>' +
       '<div class="card"><h2>Zaman × kişi</h2><p class="small muted" style="margin-top:0">Doğru / toplam. Kırmızıya yakın = zorlandığın yer. ' +
-      'T = tekil, Ç = çoğul; „ed." = edilgen, „sum" = sum/possum.</p><div style="overflow-x:auto">' + grid + '</div></div>' +
+      'T = tekil, Ç = çoğul; „ed." = edilgen, „sum" = sum/possum.</p>' + gridFilter +
+      '<div style="overflow-x:auto">' + grid + '</div></div>' +
       '<div class="card"><h2>En çok zorlananlar</h2>' + hardHTML + '</div>' +
       '<div class="card"><h2>Çekimlere göre</h2>' + conjHTML +
       '<p class="small muted">Toplam ' + total + ' cevap' + (total ? ', %' + Math.round(100 * okAll / total) + ' doğru' : '') + '.</p>' +
       '<button id="p-reset" class="btn">İlerlemeyi sıfırla</button></div>';
 
+    view.querySelectorAll('[data-gconj]').forEach(function (b) {
+      b.onclick = function () { S.prefs.gridConj = b.dataset.gconj; save(); renderProgress(); };
+    });
     const nx = document.getElementById('p-next');
     if (nx) nx.onclick = function () { S.stage++; R = W = null; save(); updateBadge(); renderProgress(); };
     document.getElementById('p-all').onclick = function () { S.unlockAll = !S.unlockAll; R = W = null; save(); updateBadge(); renderProgress(); };
