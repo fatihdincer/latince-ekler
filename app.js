@@ -361,8 +361,82 @@
     return html;
   }
 
+  /* ---------- Ekran 3: Ek yazma ---------- */
+  let W = null;
+  function normalize(s) {
+    // makron ve büyük/küçük harf önemsiz; baştaki tire ve boşluklar atılır
+    return L.stripMacrons(s).replace(/\s+/g, '').replace(/^-+/, '').replace(/j/g, 'i');
+  }
+  function renderWrite(fresh) {
+    if (!W || fresh) W = { item: pickItem(), done: false, input: '' };
+    const it = W.item;
+    const mode = it.v.conj === 'irr' ? 'full' : S.prefs.writeMode;
+    const sp = stemPart(it.parts);
+    const prefix = sp.stem.map(function (p) { return p.t; }).join('');
+    const perf = sp.stem.length && sp.stem[0].k === 'p';
+
+    const modeSwitch = '<div class="seg-switch">' +
+      '<button data-mode="full" class="' + (S.prefs.writeMode === 'full' ? 'sel' : '') + '">Tam biçim</button>' +
+      '<button data-mode="end" class="' + (S.prefs.writeMode === 'end' ? 'sel' : '') + '">Sadece ek</button></div>';
+    const note = it.v.conj === 'irr' && S.prefs.writeMode === 'end'
+      ? '<p class="small muted">Düzensiz fiilde gövde de sorulur: tam biçimi yaz.</p>' : '';
+
+    view.innerHTML =
+      '<div class="card"><div class="controls">' + conjFilterHTML() +
+      '<label>Yazma biçimi' + modeSwitch + '</label></div>' + note +
+      '<div class="prompt-line">' + verbLine(it.v) + '</div>' +
+      '<div class="prompt-line"><b>' + esc(itemLabel(it)) + '</b></div>' +
+      '<div class="prompt-line muted small">„' + esc(L.meaning(it.v, it.voice, it.tense, it.i)) + '"</div>' +
+      '<div class="answer-row">' +
+      (mode === 'end' ? '<span class="prefix' + (perf ? ' perf' : '') + '">' + esc(prefix) + '-</span>' : '') +
+      '<input type="text" id="w-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ' +
+      'placeholder="' + (mode === 'end' ? 'eki yaz' : 'biçimi yaz') + '" value="' + esc(W.input) + '"' + (W.done ? ' disabled' : '') + '>' +
+      (W.done ? '' : '<button id="w-check" class="btn primary">Kontrol</button>') + '</div>' +
+      '<p class="small muted" style="margin:6px 0 0">Makron (ā, ē…) yazmak zorunlu değil.</p>' +
+      (W.done ? feedbackWrite(mode, sp) : '') + '</div>';
+
+    bindConjFilter(renderWrite);
+    view.querySelectorAll('[data-mode]').forEach(function (b) {
+      b.onclick = function () { S.prefs.writeMode = b.dataset.mode; save(); renderWrite(false); };
+    });
+    const inp = document.getElementById('w-in');
+    inp.oninput = function () { W.input = inp.value; };
+    const chk = document.getElementById('w-check');
+    if (chk) chk.onclick = function () { checkWrite(mode, sp); };
+    const nx = document.getElementById('w-next');
+    if (nx) { nx.onclick = function () { renderWrite(true); }; nx.focus(); }
+    else inp.focus();
+    onEnter = W.done ? function () { renderWrite(true); } : function () { checkWrite(mode, sp); };
+  }
+  function checkWrite(mode, sp) {
+    if (W.done) return;
+    const a = normalize(W.input);
+    if (!a) return;
+    const full = normalize(L.joinForm(W.item.parts));
+    const end = normalize(sp.rest.map(function (p) { return p.t; }).join(''));
+    W.ok = a === full || (mode === 'end' && a === end);
+    W.done = true;
+    record(W.item, W.ok);
+    renderWrite(false);
+  }
+  function feedbackWrite(mode, sp) {
+    const it = W.item;
+    let html = '<div class="feedback ' + (W.ok ? 'ok' : 'bad') + '">' +
+      '<div class="verdict">' + (W.ok ? '✓ Doğru!' : '✗ Yanlış') + '</div>';
+    if (!W.ok) html += '<div>Senin yazdığın: <span class="lat">' + esc(W.input) + '</span></div>';
+    html += '<div>Doğrusu: ' + segHTML(it.parts, true) +
+      (mode === 'end' ? ' &nbsp;→ ek: ' + endingHTML(it.parts) : '') + '</div>' +
+      partsExplainHTML(it) + oneTip(it) +
+      '<div style="margin-top:12px"><button id="w-next" class="btn primary">Sonraki →</button></div></div>';
+    return html;
+  }
+
   /* ---------- Gezinme ---------- */
-  const SCREENS = { tablo: renderTable, tanima: function () { renderRecog(false); } };
+  const SCREENS = {
+    tablo: renderTable,
+    tanima: function () { renderRecog(false); },
+    yazma: function () { renderWrite(false); }
+  };
 
   function updateBadge() {
     const st = L.STAGES[maxStage() - 1];
