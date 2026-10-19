@@ -155,7 +155,12 @@
         esc(L.tenseLabel(p[0], p[1])) + ' — ' + esc(L.TENSES[p[1]].tr) + '</option>';
     }).join('');
   }
-  function tipsFor(v, tk) { return L.tips(v.conj, tk); }
+  function tipsFor(v, tk) { return L.tips(v, tk); }
+
+  // Biçim hücresi; dar ekranda Türkçe anlam biçimin altına iner (Türkçe sütunu gizlenir)
+  function formCell(f, tr) {
+    return segHTML(f, true) + '<div class="tr-under">' + esc(tr) + '</div>';
+  }
 
   function stemsHTML(v) {
     const pres = v.conj === 'irr' ? '' :
@@ -178,7 +183,7 @@
     const rows = L.PERSONS.map(function (pr, i) {
       const f = L.form(v, voice, p[1], i);
       return '<tr><td class="per">' + pr.label + '<br><span class="small">(' + pr.short + ')</span></td>' +
-        '<td>' + segHTML(f, true) + '</td><td class="col-end">' + endingHTML(f) + '</td>' +
+        '<td>' + formCell(f, L.meaning(v, voice, p[1], i)) + '</td><td class="col-end">' + endingHTML(f) + '</td>' +
         '<td class="tr">' + esc(L.meaning(v, voice, p[1], i)) + '</td></tr>';
     }).join('');
 
@@ -303,6 +308,12 @@
     return '<div class="tip-box">' + esc(rand(tips)) + '</div>';
   }
 
+  // Bu oturumdaki (sayfa açıkken) doğru / toplam
+  const SESSION = { recog: { ok: 0, n: 0 }, write: { ok: 0, n: 0 } };
+  function sessionHTML(s) {
+    return '<div class="session small muted">Bu oturum: <b>' + s.ok + '/' + s.n + '</b> doğru</div>';
+  }
+
   let onEnter = null;
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && onEnter) { e.preventDefault(); onEnter(); }
@@ -333,6 +344,7 @@
       '<div class="card"><div class="controls">' + conjFilterHTML() +
       '<label class="check"><input type="checkbox" id="r-hide"' + (hide ? ' checked' : '') + (R.done ? ' disabled' : '') + '> ' +
       'Makronları gizle <span class="small">(metin modu)</span></label></div>' +
+      sessionHTML(SESSION.recog) +
       '<p class="muted small" style="margin:0">Biçimin zamanını, kişisini ve sayısını seç.</p>' +
       '<div class="big-form">' + (R.done ? segHTML(R.shown.parts, true) : '<span class="lat">' + esc(shown) + '</span>') + '</div>' +
       '<div class="prompt-line small">' + verbLine(it.v) + '</div>' +
@@ -389,6 +401,7 @@
     // gösterilecek çözümleme: doğruysa kullanıcının seçtiği, değilse sorulan
     R.shown = hit || R.item;
     R.done = true;
+    SESSION.recog.n++; if (R.ok) SESSION.recog.ok++;
     record(R.item, R.ok);
     renderRecog(false);
   }
@@ -463,7 +476,7 @@
 
     view.innerHTML =
       '<div class="card"><div class="controls">' + conjFilterHTML() +
-      '<label>Yazma biçimi' + modeSwitch + '</label></div>' + note +
+      '<label>Yazma biçimi' + modeSwitch + '</label></div>' + sessionHTML(SESSION.write) + note +
       '<div class="prompt-line">' + verbLine(it.v) + '</div>' +
       '<div class="prompt-line"><b>' + esc(itemLabel(it)) + '</b></div>' +
       '<div class="prompt-line muted small">„' + esc(L.meaning(it.v, it.voice, it.tense, it.i)) + '"</div>' +
@@ -496,6 +509,7 @@
     const end = normalize(sp.rest.map(function (p) { return p.t; }).join(''));
     W.ok = a === full || (mode === 'end' && a === end);
     W.done = true;
+    SESSION.write.n++; if (W.ok) SESSION.write.ok++;
     record(W.item, W.ok);
     renderWrite(false);
   }
@@ -519,7 +533,7 @@
     const rows = openTenses(v).map(function (tk) {
       const p = tk.split('.');
       const f = L.form(v, p[0], p[1], i);
-      return '<tr><td class="per">' + esc(L.tenseLabel(p[0], p[1])) + '</td><td>' + segHTML(f, true) + '</td>' +
+      return '<tr><td class="per">' + esc(L.tenseLabel(p[0], p[1])) + '</td><td>' + formCell(f, L.meaning(v, p[0], p[1], i)) + '</td>' +
         '<td class="col-end">' + endingHTML(f) + '</td><td class="tr">' + esc(L.meaning(v, p[0], p[1], i)) + '</td></tr>';
     }).join('');
     const perBtns = '<div class="btn-row">' + L.PERSONS.map(function (pr, j) {
@@ -673,10 +687,18 @@
     SCREENS[tab]();
     window.scrollTo(0, 0);
   }
-  document.getElementById('nav').addEventListener('click', function (e) {
+  const nav = document.getElementById('nav');
+  nav.addEventListener('click', function (e) {
     const b = e.target.closest('button');
     if (b) show(b.dataset.tab);
   });
+  // Sekmeler sığmazsa sağ kenarı soldur: kaydırılabilir olduğu belli olsun
+  function navFade() {
+    nav.classList.toggle('more', nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 2);
+  }
+  nav.addEventListener('scroll', navFade);
+  window.addEventListener('resize', navFade);
+  navFade();
 
   show(S.prefs.tab);
 })();

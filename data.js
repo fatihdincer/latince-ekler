@@ -85,6 +85,9 @@
     { id: 'terreo', conj: '2', lemma: 'terreō, terrēre, terruī, territus', root: 'terr', perf: 'terru', ppp: 'territ', tr: 'korkutmak',
       t: { yor: 'korkutuyor', ecek: 'korkutacak', di: 'korkuttu', mis: 'korkutmuş', pyor: 'korkutuluyor', pecek: 'korkutulacak' } },
     { id: 'video', conj: '2', lemma: 'videō, vidēre, vīdī, vīsus', root: 'vid', perf: 'vīd', ppp: 'vīs', tr: 'görmek',
+      // fiile özel ipucu: çatı → ipuçları
+      tips: { pas: ['videor çoğunlukla „görünüyorum, …gibi görünüyorum" anlamındadır: vidētur „(öyle) görünüyor", ' +
+                    'bonus vidētur „iyi görünüyor". „Görülüyorum" anlamı da var ama daha seyrek.'] },
       t: { yor: 'görüyor', ecek: 'görecek', di: 'gördü', mis: 'görmüş', pyor: 'görülüyor', pecek: 'görülecek' } },
     { id: 'teneo', conj: '2', lemma: 'teneō, tenēre, tenuī, tentus', root: 'ten', perf: 'tenu', ppp: 'tent', tr: 'tutmak',
       t: { yor: 'tutuyor', ecek: 'tutacak', di: 'tuttu', mis: 'tutmuş', pyor: 'tutuluyor', pecek: 'tutulacak' } },
@@ -127,8 +130,11 @@
     { id: 'sum', conj: 'irr', lemma: 'sum, esse, fuī', perf: 'fu', tr: 'olmak',
       t: { ecek: 'olacak', di: 'oldu', mis: 'olmuş' },
       trOverride: {
-        pres: ['…-im', '…-sin', '…-dir', '…-iz', '…-siniz', '…-dirler'],
-        impf: ['…-idim', '…-idin', '…-idi', '…-idik', '…-idiniz', '…-idiler']
+        // Türkçede ek-fiil: örnek kelimeyle göster
+        pres: ['(ben) …-im: öğrenciyim', '(sen) …-sin: öğrencisin', '(o) …-dir: öğrencidir',
+               '(biz) …-iz: öğrenciyiz', '(siz) …-siniz: öğrencisiniz', '(onlar) …-dirler: öğrencidirler'],
+        impf: ['(ben) …-idim: öğrenciydim', '(sen) …-idin: öğrenciydin', '(o) …-idi: öğrenciydi',
+               '(biz) …-idik: öğrenciydik', '(siz) …-idiniz: öğrenciydiniz', '(onlar) …-idiler: öğrenciydiler']
       } },
     { id: 'possum', conj: 'irr', lemma: 'possum, posse, potuī', perf: 'potu', tr: '-ebilmek, gücü yetmek',
       t: { yor: 'yapabiliyor', ecek: 'yapabilecek', di: 'yapabildi', mis: 'yapabilmiş' },
@@ -364,6 +370,8 @@
     ],
     'irr': [
       'sum: su-m, e-s, es-t, su-mus, es-tis, su-nt — ekler tanıdık!',
+      { t: 'sum\'ın Türkçe karşılığı çoğunlukla ek-fiildir: discipulus sum „öğrenciyim", discipulus erat „öğrenciydi". ' +
+           'Futurum ve perfectumda „olmak": erō „olacağım", fuī „oldum".', v: 'sum' },
       'possum = pot- + sum; s\'den önce pot- → pos-: possum, possunt; diğerlerinde pot-: potes, poterat.',
       'Perfectum düzenli: fu- ve potu- gövdesi + -ī, -istī, -it…'
     ]
@@ -398,10 +406,17 @@
     return '';
   }
 
-  function tips(conj, tk) {
+  // Fiile uygun ipuçları: genel + çekime özel ({c}) + fiile özel ({v} ya da v.tips[çatı])
+  function tips(v, tk) {
+    const conj = v.conj;
     const list = TIPS[conj === 'irr' ? 'irr' : tk] || [];
-    return list.filter(function (x) { return typeof x === 'string' || x.c.indexOf(conj) >= 0; })
-      .map(function (x) { return typeof x === 'string' ? x : x.t; });
+    const out = list.filter(function (x) {
+      if (typeof x === 'string') return true;
+      if (x.c) return x.c.indexOf(conj) >= 0;
+      return x.v === v.id;
+    }).map(function (x) { return typeof x === 'string' ? x : x.t; });
+    const own = v.tips && v.tips[tk.split('.')[0]];
+    return own ? own.concat(out) : out;
   }
 
   function stripMacrons(s) {

@@ -72,6 +72,10 @@ button, select, input { font: inherit; color: inherit; }
   scrollbar-width: none;
 }
 #nav::-webkit-scrollbar { display: none; }
+#nav.more {
+  -webkit-mask-image: linear-gradient(to right, #000 80%, transparent);
+  mask-image: linear-gradient(to right, #000 80%, transparent);
+}
 #nav button {
   flex: 1 0 auto;
   background: none; border: none; border-bottom: 3px solid transparent;
@@ -113,6 +117,7 @@ input[type=text]:focus, select:focus { outline: 2px solid var(--accent); outline
 .btn-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
 .controls label.check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: .9rem; flex: 0 1 auto; padding-bottom: 8px; }
 .alts { margin-top: 8px; }
+.session { text-align: right; margin: -4px 0 4px; }
 .seg-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .seg-switch button { border: none; background: var(--bg); padding: 6px 12px; cursor: pointer; }
 .seg-switch button.sel { background: var(--accent); color: #fff; }
@@ -138,11 +143,13 @@ table.conj th, table.conj td { padding: 8px 6px; border-bottom: 1px solid var(--
 table.conj th { font-size: .8rem; color: var(--muted); font-weight: 600; }
 table.conj td.per { white-space: nowrap; color: var(--muted); font-size: .9rem; }
 table.conj td.tr { color: var(--muted); }
+.tr-under { display: none; color: var(--muted); font-size: .85rem; margin-top: 2px; }
 @media (max-width: 560px) {
   table.conj .col-end { display: none; }
   table.conj th, table.conj td { padding: 7px 4px; }
   table.conj td.per { white-space: normal; hyphens: manual; font-size: .82rem; }
-  table.conj td.tr { font-size: .9rem; }
+  table.conj td.tr, table.conj th:last-child { display: none; }
+  .tr-under { display: block; }
 }
 
 .stems { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 4px 0 10px; }
