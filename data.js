@@ -96,7 +96,7 @@
     // 3. çekim
     { id: 'rego', conj: '3', lemma: 'regō, regere, rēxī, rēctus', root: 'reg', perf: 'rēx', ppp: 'rēct', tr: 'yönetmek',
       t: { yor: 'yönetiyor', ecek: 'yönetecek', di: 'yönetti', mis: 'yönetmiş', pyor: 'yönetiliyor', pecek: 'yönetilecek' } },
-    { id: 'duco', conj: '3', lemma: 'dūcō, dūcere, dūxī, ductus', root: 'dūc', perf: 'dūx', ppp: 'duct', tr: 'götürmek',
+    { id: 'duco', conj: '3', lemma: 'dūcō, dūcere, dūxī, dūctus', root: 'dūc', perf: 'dūx', ppp: 'dūct', tr: 'götürmek',
       t: { yor: 'götürüyor', ecek: 'götürecek', di: 'götürdü', mis: 'götürmüş', pyor: 'götürülüyor', pecek: 'götürülecek' } },
     { id: 'mitto', conj: '3', lemma: 'mittō, mittere, mīsī, missus', root: 'mitt', perf: 'mīs', ppp: 'miss', tr: 'göndermek',
       t: { yor: 'gönderiyor', ecek: 'gönderecek', di: 'gönderdi', mis: 'göndermiş', pyor: 'gönderiliyor', pecek: 'gönderilecek' } },

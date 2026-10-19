@@ -102,6 +102,7 @@ const REF = {
     'pas.fut2': 'audītus_erō audītus_eris audītus_erit audītī_erimus audītī_eritis audītī_erunt'
   },
   video_pp: { 'pas.perf': 'vīsus_sum vīsus_es vīsus_est vīsī_sumus vīsī_estis vīsī_sunt' },
+  duco_pp: { 'pas.perf': 'dūctus_sum dūctus_es dūctus_est dūctī_sumus dūctī_estis dūctī_sunt' },
   dico_pp: { 'pas.perf': 'dictus_sum dictus_es dictus_est dictī_sumus dictī_estis dictī_sunt' },
   mitto_pp: { 'pas.plpf': 'missus_eram missus_erās missus_erat missī_erāmus missī_erātis missī_erant' },
   // Ek fiiller: her birinden birkaç ayırt edici biçim
