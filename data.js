@@ -278,24 +278,26 @@
     return '';
   }
 
-  /* ---------- İpuçları ---------- */
+  /* ---------- İpuçları ----------
+   * Metin ya da {t, c}: c verilirse yalnız o çekimlerde gösterilir. */
   const TIPS = {
     'act.pres': [
       'Praesens\'te zaman işareti yok: kök + (tema ünlüsü) + kişi eki.',
       'Kişi ekleri: -ō/-m, -s, -t, -mus, -tis, -nt. Bunları her zamanda tekrar göreceksin.',
-      '3. çekimde ara ünlü -i-, 3. çoğulda -u-: regis, regit, regunt.',
-      '4. çekim ve -iō fiillerinde 3. çoğul -iunt: audiunt, capiunt.'
+      { t: '3. çekimde ara ünlü -i-, 3. çoğulda -u-: regis, regit, regunt.', c: ['3'] },
+      { t: '4. çekim ve -iō fiillerinde 3. çoğul -iunt: audiunt, capiunt.', c: ['3io', '4'] }
     ],
     'act.impf': [
       '-ba- görürsen imperfectum: amābam, monēbās, regēbat.',
-      '3. ve 4. çekimde -ba- önünde -ē- / -iē- var: regēbam, capiēbam, audiēbam.',
+      { t: '3. ve 4. çekimde -ba- önünde -ē- / -iē- var: regēbam, capiēbam, audiēbam.', c: ['3', '3io', '4'] },
       '1. tekil -m ile biter (-ō değil): amābam.'
     ],
     'act.fut': [
-      '1. ve 2. çekimde futurum -b- ile: amābō, amābis, amābit … amābunt (-bō / -bi- / -bu-).',
-      '3. ve 4. çekimde futurum -e- ile yapılır, -bi- değil: regēs, reget, regent.',
-      '3.-4. çekimde 1. tekil -am: regam, capiam, audiam.',
-      'Dikkat: regis (praesens) ≠ regēs (futurum); regit ≠ reget.'
+      { t: '1. ve 2. çekimde futurum -b- ile: amābō, amābis, amābit … amābunt (-bō / -bi- / -bu-).', c: ['1', '2'] },
+      { t: '3. ve 4. çekimde futurum -e- ile yapılır, -bi- değil: regēs, reget, regent.', c: ['3', '3io', '4'] },
+      { t: '3.-4. çekimde 1. tekil -am: regam, capiam, audiam.', c: ['3', '3io', '4'] },
+      { t: 'Dikkat: regis (praesens) ≠ regēs (futurum); regit ≠ reget.', c: ['3'] },
+      { t: 'Dikkat: monēbit (futurum, -bi-) ≠ monēbat (imperfectum, -ba-).', c: ['1', '2'] }
     ],
     'act.perf': [
       'Perfectum kendi gövdesiyle kurulur — sözlükteki 3. biçimden -ī atılır: amāvī → amāv-.',
@@ -314,16 +316,16 @@
     'pas.pres': [
       'Edilgen kişi ekleri: -r (-or), -ris, -tur, -mur, -minī, -ntur.',
       '-ntur görürsen edilgen 3. çoğul; -tur edilgen 3. tekil.',
-      '3. çekim 2. tekilde -e-: regeris, caperis (kısa e).'
+      { t: '3. çekim 2. tekilde -e-: regeris, caperis (kısa e).', c: ['3', '3io'] }
     ],
     'pas.impf': [
       'Etkendeki -ba- aynen kalır, sadece kişi eki değişir: amābam → amābar.',
       '1. tekilde -m yerine -r gelir: regēbar.'
     ],
     'pas.fut': [
-      '1.-2. çekimde 2. tekil -beris (-bi- değil): amāberis, monēberis.',
-      '3.-4. çekim edilgen futurum: regar, regēris, regētur … regentur.',
-      'regeris (praesens, kısa e) ≠ regēris (futurum, uzun ē).'
+      { t: '1.-2. çekimde 2. tekil -beris (-bi- değil): amāberis, monēberis.', c: ['1', '2'] },
+      { t: '3.-4. çekim edilgen futurum: regar, regēris, regētur … regentur.', c: ['3', '3io', '4'] },
+      { t: 'regeris (praesens, kısa e) ≠ regēris (futurum, uzun ē).', c: ['3'] }
     ],
     'irr': [
       'sum: su-m, e-s, es-t, su-mus, es-tis, su-nt — ekler tanıdık!',
@@ -354,6 +356,12 @@
     return '';
   }
 
+  function tips(conj, tk) {
+    const list = TIPS[conj === 'irr' ? 'irr' : tk] || [];
+    return list.filter(function (x) { return typeof x === 'string' || x.c.indexOf(conj) >= 0; })
+      .map(function (x) { return typeof x === 'string' ? x : x.t; });
+  }
+
   function stripMacrons(s) {
     return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   }
@@ -362,7 +370,7 @@
     PERSONS: PERSONS, TENSES: TENSES, VOICES: VOICES, TENSE_KEYS: TENSE_KEYS, STAGES: STAGES,
     CONJ: CONJ, VERBS: VERBS, TIPS: TIPS,
     form: form, joinForm: joinForm, meaning: meaning, tenseLabel: tenseLabel,
-    explainPart: explainPart, stripMacrons: stripMacrons
+    explainPart: explainPart, tips: tips, stripMacrons: stripMacrons
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.LATIN = API;

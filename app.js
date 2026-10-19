@@ -107,7 +107,7 @@
         esc(L.tenseLabel(p[0], p[1])) + ' — ' + esc(L.TENSES[p[1]].tr) + '</option>';
     }).join('');
   }
-  function tipsFor(v, tk) { return L.TIPS[v.conj === 'irr' ? 'irr' : tk] || []; }
+  function tipsFor(v, tk) { return L.tips(v.conj, tk); }
 
   function stemsHTML(v) {
     const pres = v.conj === 'irr' ? '' :
@@ -431,11 +431,136 @@
     return html;
   }
 
+  /* ---------- Ekran 4: Karşılaştırma ---------- */
+  function renderCompare() {
+    let v = VERB[S.prefs.cmpVerb];
+    if (openVerbs().indexOf(v) < 0) v = VERB.amo;
+    const i = S.prefs.cmpPer || 0;
+    const rows = openTenses(v).map(function (tk) {
+      const p = tk.split('.');
+      const f = L.form(v, p[0], p[1], i);
+      return '<tr><td class="per">' + esc(L.tenseLabel(p[0], p[1])) + '</td><td>' + segHTML(f, true) + '</td>' +
+        '<td class="col-end">' + endingHTML(f) + '</td><td class="tr">' + esc(L.meaning(v, p[0], p[1], i)) + '</td></tr>';
+    }).join('');
+    const perBtns = '<div class="btn-row">' + L.PERSONS.map(function (pr, j) {
+      return '<button class="btn' + (j === i ? ' sel' : '') + '" data-per="' + j + '">' + pr.label + ' (' + pr.short + ')</button>';
+    }).join('') + '</div>';
+
+    view.innerHTML =
+      '<div class="card"><div class="controls"><label>Fiil<select id="c-verb">' + verbOptions(v.id) + '</select></label></div>' +
+      '<div class="q-label">Kişi</div>' + perBtns + stemsHTML(v) + LEGEND + '</div>' +
+      '<div class="card"><h2>' + esc(L.PERSONS[i].label) + ' — tüm zamanlar</h2>' +
+      '<p class="small muted" style="margin-top:0">Kişi aynı, zaman değişiyor: farkı turuncu zaman işareti ve gövde gösteriyor.</p>' +
+      '<table class="conj"><thead><tr><th>Zaman</th><th>Biçim</th><th class="col-end">Ek</th><th>Türkçe</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
+
+    document.getElementById('c-verb').onchange = function (e) { S.prefs.cmpVerb = e.target.value; save(); renderCompare(); };
+    view.querySelectorAll('[data-per]').forEach(function (b) {
+      b.onclick = function () { S.prefs.cmpPer = Number(b.dataset.per); save(); renderCompare(); };
+    });
+  }
+
+  /* ---------- Ekran 5: İlerleme ---------- */
+  function keyLabel(key) {
+    const p = key.split('.');
+    const pr = L.PERSONS.find(function (x) { return x.id === p[2]; });
+    const t = p[0] === 'irr' ? 'sum/possum ' + L.TENSES[p[1]].name : L.tenseLabel(p[0], p[1]);
+    return t + ', ' + pr.label;
+  }
+  function accColor(acc) {
+    return 'hsla(' + Math.round(acc * 130) + ', 70%, 50%, .28)';
+  }
+  function gridRow(label, prefix) {
+    return '<tr><th>' + esc(label) + '</th>' + L.PERSONS.map(function (pr) {
+      const st = S.stats[prefix + '.' + pr.id];
+      if (!st) return '<td class="none">·</td>';
+      const n = st.right + st.wrong;
+      return '<td style="background:' + accColor(st.right / n) + '" title="' + st.right + ' doğru, ' + st.wrong + ' yanlış">' +
+        st.right + '/' + n + '</td>';
+    }).join('') + '</tr>';
+  }
+  function renderProgress() {
+    const ms = maxStage();
+    const stages = L.STAGES.map(function (st) {
+      const open = st.n <= ms;
+      let extra = '';
+      if (st.n === S.stage && S.stage < 5 && !S.unlockAll) {
+        const p = stageProgress(st.n);
+        extra = '<div class="small" style="margin-top:6px">Sonraki aşama için: ' + Math.min(p.right, UNLOCK_RIGHT) + '/' + UNLOCK_RIGHT +
+          ' doğru, son ' + UNLOCK_WINDOW + ' cevapta en az %' + (UNLOCK_ACC * 100) + ' başarı (şu an: ' +
+          (p.recentN ? '%' + Math.round(p.acc * 100) + ', ' + p.recentN + ' cevap' : '—') + ')</div>' +
+          '<div class="bar"><div style="width:' + Math.round(100 * Math.min(1, p.right / UNLOCK_RIGHT)) + '%"></div></div>';
+      }
+      return '<div class="stage' + (open ? ' open' : '') + '"><div class="num">' + (open ? st.n : '🔒') + '</div>' +
+        '<div class="body"><b>' + esc(st.title) + '</b><div class="small muted">' + esc(st.desc) + '</div>' + extra + '</div></div>';
+    }).join('');
+
+    let grid = '<table class="grid"><thead><tr><th></th>' + L.PERSONS.map(function (p) {
+      return '<th style="text-align:center">' + p.id.replace('s', 'T').replace('p', 'Ç') + '</th>';
+    }).join('') + '</tr></thead><tbody>';
+    L.TENSE_KEYS.filter(function (k) { return stageOfTense(k) <= ms; }).forEach(function (tk) {
+      const p = tk.split('.');
+      grid += gridRow(L.tenseLabel(p[0], p[1]), tk);
+    });
+    if (ms >= 5) IRR_TENSES.forEach(function (t) { grid += gridRow('sum/possum ' + L.TENSES[t].name, 'irr.' + t); });
+    grid += '</tbody></table>';
+
+    const hard = Object.keys(S.stats).filter(function (k) { return S.stats[k].wrong > 0; })
+      .sort(function (a, b) {
+        const x = S.stats[a], y = S.stats[b];
+        return (y.wrong - y.right * 0.5) - (x.wrong - x.right * 0.5) || x.box - y.box;
+      }).slice(0, 8);
+    const hardHTML = hard.length ? '<ul class="tips">' + hard.map(function (k) {
+      const st = S.stats[k];
+      const p = k.split('.');
+      const v = p[0] === 'irr' ? VERB.sum : VERB.amo;
+      const voice = p[0] === 'irr' ? 'act' : p[0];
+      const i = L.PERSONS.findIndex(function (x) { return x.id === p[2]; });
+      return '<li>' + esc(keyLabel(k)) + ' — örn. ' + segHTML(L.form(v, voice, p[1], i), false) +
+        ' <span class="small muted">(' + st.wrong + ' yanlış, ' + st.right + ' doğru)</span></li>';
+    }).join('') + '</ul><p class="small muted">Bunlar alıştırmalarda daha sık sorulur.</p>'
+      : '<p class="muted">Henüz hata yok. Alıştırma yaptıkça burada görünür.</p>';
+
+    const byConj = {};
+    S.history.forEach(function (h) {
+      const c = byConj[h.c] || (byConj[h.c] = { ok: 0, n: 0 });
+      c.n++; c.ok += h.ok;
+    });
+    const conjHTML = Object.keys(byConj).length ? '<table class="conj"><tbody>' + Object.keys(byConj).map(function (c) {
+      const x = byConj[c];
+      const name = c === 'irr' ? 'sum / possum' : L.CONJ[c].name + ' (' + L.CONJ[c].model + ')';
+      return '<tr><td>' + esc(name) + '</td><td>%' + Math.round(100 * x.ok / x.n) + '</td><td class="muted small">' + x.n + ' soru</td></tr>';
+    }).join('') + '</tbody></table>' : '<p class="muted">Veri yok.</p>';
+
+    const total = S.history.length, okAll = S.history.filter(function (h) { return h.ok; }).length;
+
+    view.innerHTML =
+      '<div class="card"><h2>Aşamalar</h2>' + stages +
+      '<div class="btn-row" style="margin-top:10px">' +
+      (S.stage < 5 && !S.unlockAll ? '<button id="p-next" class="btn">Sonraki aşamayı şimdi aç</button>' : '') +
+      '<button id="p-all" class="btn">' + (S.unlockAll ? 'Kilitleri geri getir' : 'Tüm aşamaları aç') + '</button></div></div>' +
+      '<div class="card"><h2>Zaman × kişi</h2><p class="small muted" style="margin-top:0">Doğru / toplam. Kırmızıya yakın = zorlandığın yer. ' +
+      'T = tekil, Ç = çoğul.</p><div style="overflow-x:auto">' + grid + '</div></div>' +
+      '<div class="card"><h2>En çok zorlananlar</h2>' + hardHTML + '</div>' +
+      '<div class="card"><h2>Çekimlere göre</h2>' + conjHTML +
+      '<p class="small muted">Toplam ' + total + ' cevap' + (total ? ', %' + Math.round(100 * okAll / total) + ' doğru' : '') + '.</p>' +
+      '<button id="p-reset" class="btn">İlerlemeyi sıfırla</button></div>';
+
+    const nx = document.getElementById('p-next');
+    if (nx) nx.onclick = function () { S.stage++; R = W = null; save(); updateBadge(); renderProgress(); };
+    document.getElementById('p-all').onclick = function () { S.unlockAll = !S.unlockAll; R = W = null; save(); updateBadge(); renderProgress(); };
+    document.getElementById('p-reset').onclick = function () {
+      if (confirm('Tüm ilerleme silinsin mi?')) { S = defaultState(); R = W = null; save(); show('ilerleme'); }
+    };
+  }
+
   /* ---------- Gezinme ---------- */
   const SCREENS = {
     tablo: renderTable,
     tanima: function () { renderRecog(false); },
-    yazma: function () { renderWrite(false); }
+    yazma: function () { renderWrite(false); },
+    karsilastir: renderCompare,
+    ilerleme: renderProgress
   };
 
   function updateBadge() {
