@@ -394,14 +394,30 @@
     } else {
       const cp = R.choice.tk.split('.');
       html += '<div class="verdict">✗ Yanlış</div>' +
-        '<div>Senin cevabın: ' + esc(L.tenseLabel(cp[0], cp[1]) + ', ' + L.PERSONS[R.choice.i].label) + '</div>';
+        '<div>Senin cevabın: ' + esc(L.tenseLabel(cp[0], cp[1]) + ', ' + L.PERSONS[R.choice.i].label +
+          ' (' + L.PERSONS[R.choice.i].short + ')') + '</div>';
     }
     html += '<div>Doğrusu: <b>' + esc(itemLabel(it)) + '</b> — „' + esc(L.meaning(it.v, it.voice, it.tense, it.i)) + '"</div>';
     if (!R.ok) {
+      const cp = R.choice.tk.split('.');
       const what = [];
-      if (R.choice.tk !== it.tk) what.push('zaman işaretine');
-      if (R.choice.i !== it.i) what.push('kişi ekine (' + pr.label + ')');
-      if (what.length) html += '<div class="small" style="margin-top:6px">Bak: ' + what.join(' ve ') + '.</div>';
+      const perfSys = function (tense) { return tense === 'perf' || tense === 'plpf' || tense === 'fut2'; };
+      const periphrastic = function (voice, tense) { return voice === 'pas' && perfSys(tense); };
+      // çatı farkı: tek kelimelik biçimlerde çatıyı kişi eki gösterir
+      let voiceInEnding = false;
+      if (cp[0] !== it.voice) {
+        if (periphrastic(it.voice, it.tense) || periphrastic(cp[0], cp[1])) {
+          what.push('yapıya: participium (-us/-ī) + sum = edilgen, tek kelime = etken');
+        } else voiceInEnding = true;
+      }
+      if (perfSys(cp[1]) !== perfSys(it.tense)) what.push('gövdeye (şimdiki zaman kökü mü, perfectum gövdesi mi?)');
+      if (cp[1] !== it.tense) what.push('zaman işaretine');
+      const personDiff = R.choice.i !== it.i;
+      if (personDiff || voiceInEnding) {
+        what.push('kişi ekine (' + [personDiff ? pr.label + ', ' + pr.short : '',
+          voiceInEnding ? '-m/-ō etken, -r edilgen' : ''].filter(Boolean).join('; ') + ')');
+      }
+      if (what.length) html += '<div class="small" style="margin-top:6px">Bak: ' + what.join(', ') + '.</div>';
     }
     const others = R.alts.filter(function (a) { return !(a.tk === it.tk && a.i === it.i); });
     if (others.length) {
