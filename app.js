@@ -14,7 +14,8 @@
       stage: 1, unlockAll: false,
       stats: {},      // anahtar → {box, right, wrong, last}
       history: [],    // {k, ok, c}
-      prefs: { tab: 'tablo', writeMode: 'full', conj: 'all', gridConj: 'all', tableVerb: 'amo', tableTense: 'act.pres', cmpVerb: 'amo', cmpPer: 0 }
+      prefs: { tab: 'tablo', writeMode: 'full', conj: 'all', gridConj: 'all', hideMacrons: false,
+               tableVerb: 'amo', tableTense: 'act.pres', cmpVerb: 'amo', cmpPer: 0 }
     };
   }
   function applyAnswer(stats, key, ok) {
@@ -318,11 +319,15 @@
     const perBtns = btns('per', [['1', '1. kişi'], ['2', '2. kişi'], ['3', '3. kişi']], R.per);
     const numBtns = btns('num', [['tekil', 'tekil'], ['çoğul', 'çoğul']], R.num);
     const ready = R.tk && R.per && R.num;
+    const hide = S.prefs.hideMacrons;
+    const shown = hide ? L.stripMacrons(L.joinForm(it.parts)) : L.joinForm(it.parts);
 
     view.innerHTML =
-      '<div class="card"><div class="controls">' + conjFilterHTML() + '</div>' +
+      '<div class="card"><div class="controls">' + conjFilterHTML() +
+      '<label class="check"><input type="checkbox" id="r-hide"' + (hide ? ' checked' : '') + (R.done ? ' disabled' : '') + '> ' +
+      'Makronları gizle <span class="small">(metin modu)</span></label></div>' +
       '<p class="muted small" style="margin:0">Biçimin zamanını, kişisini ve sayısını seç.</p>' +
-      '<div class="big-form">' + (R.done ? segHTML(it.parts, true) : '<span class="lat">' + esc(L.joinForm(it.parts)) + '</span>') + '</div>' +
+      '<div class="big-form">' + (R.done ? segHTML(R.shown.parts, true) : '<span class="lat">' + esc(shown) + '</span>') + '</div>' +
       '<div class="prompt-line small">' + verbLine(it.v) + '</div>' +
       '<div class="q-label">Zaman</div>' + tenseBtns +
       '<div class="q-label">Kişi</div>' + perBtns +
@@ -331,6 +336,9 @@
       (R.done ? feedbackRecog() : '') + '</div>';
 
     bindConjFilter(renderRecog);
+    document.getElementById('r-hide').onchange = function (e) {
+      S.prefs.hideMacrons = e.target.checked; save(); renderRecog(false);
+    };
     view.querySelectorAll('[data-tk],[data-per],[data-num]').forEach(function (b) {
       b.onclick = function () {
         if (b.dataset.tk) R.tk = b.dataset.tk;
@@ -346,15 +354,19 @@
     onEnter = R.done ? function () { renderRecog(true); } : (ready ? checkRecog : null);
   }
 
-  // Aynı yazılışa sahip tüm çözümlemeler (örn. makron dahil aynı biçim)
-  function analyses(item) {
-    const target = L.joinForm(item.parts);
+  // Aynı yazılışa sahip tüm çözümlemeler. Makronlar gizliyse makronsuz karşılaştırılır
+  // (ör. regeris: praesens edilgen 2. tekil ve futurum edilgen 2. tekil regēris).
+  function analyses(item, noMacrons) {
+    const norm = noMacrons ? L.stripMacrons : function (x) { return x; };
+    const target = norm(L.joinForm(item.parts));
     const out = [];
     L.TENSE_KEYS.forEach(function (tk) {
       const p = tk.split('.');
-      if (item.v.conj === 'irr' && p[0] === 'pas') return;
       for (let i = 0; i < 6; i++) {
-        if (L.joinForm(L.form(item.v, p[0], p[1], i)) === target) out.push({ tk: tk, i: i });
+        const f = L.form(item.v, p[0], p[1], i);
+        if (f && norm(L.joinForm(f)) === target) {
+          out.push({ key: item.key, v: item.v, voice: p[0], tense: p[1], tk: tk, i: i, parts: f });
+        }
       }
     });
     return out;
@@ -363,13 +375,18 @@
     if (!(R.tk && R.per && R.num) || R.done) return;
     const idx = (R.num === 'çoğul' ? 3 : 0) + Number(R.per) - 1;
     R.choice = { tk: R.tk, i: idx };
-    R.ok = analyses(R.item).some(function (a) { return a.tk === R.tk && a.i === idx; });
+    R.hidden = S.prefs.hideMacrons;
+    R.alts = analyses(R.item, R.hidden);
+    const hit = R.alts.find(function (a) { return a.tk === R.tk && a.i === idx; });
+    R.ok = !!hit;
+    // gösterilecek çözümleme: doğruysa kullanıcının seçtiği, değilse sorulan
+    R.shown = hit || R.item;
     R.done = true;
     record(R.item, R.ok);
     renderRecog(false);
   }
   function feedbackRecog() {
-    const it = R.item;
+    const it = R.shown;
     const pr = L.PERSONS[it.i];
     let html = '<div class="feedback ' + (R.ok ? 'ok' : 'bad') + '">';
     if (R.ok) {
@@ -385,6 +402,15 @@
       if (R.choice.tk !== it.tk) what.push('zaman işaretine');
       if (R.choice.i !== it.i) what.push('kişi ekine (' + pr.label + ')');
       if (what.length) html += '<div class="small" style="margin-top:6px">Bak: ' + what.join(' ve ') + '.</div>';
+    }
+    const others = R.alts.filter(function (a) { return !(a.tk === it.tk && a.i === it.i); });
+    if (others.length) {
+      html += '<div class="alts"><div class="small">' +
+        (R.hidden ? 'Bu biçim makronsuz yazılınca şu anlamlara da gelebilir:' : 'Bu biçim şu anlamlara da gelebilir:') +
+        '</div><ul class="tips">' + others.map(function (a) {
+          return '<li>' + segHTML(a.parts, false) + ' — ' + esc(itemLabel(a)) +
+            ' — „' + esc(L.meaning(a.v, a.voice, a.tense, a.i)) + '"</li>';
+        }).join('') + '</ul></div>';
     }
     html += partsExplainHTML(it) + oneTip(it) +
       '<div style="margin-top:12px"><button id="r-next" class="btn primary">Sonraki →</button></div></div>';

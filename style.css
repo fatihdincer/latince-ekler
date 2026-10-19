@@ -105,6 +105,8 @@ input[type=text]:focus, select:focus { outline: 2px solid var(--accent); outline
 .btn.sel { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .btn:disabled { opacity: .5; cursor: default; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.controls label.check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: .9rem; flex: 0 1 auto; padding-bottom: 8px; }
+.alts { margin-top: 8px; }
 .seg-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .seg-switch button { border: none; background: var(--bg); padding: 6px 12px; cursor: pointer; }
 .seg-switch button.sel { background: var(--accent); color: #fff; }
