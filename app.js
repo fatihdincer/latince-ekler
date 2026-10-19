@@ -455,10 +455,6 @@
 
   /* ---------- Ekran 3: Ek yazma ---------- */
   let W = null;
-  function normalize(s) {
-    // makron ve büyük/küçük harf önemsiz; baştaki tire ve boşluklar atılır
-    return L.stripMacrons(s).replace(/\s+/g, '').replace(/^-+/, '').replace(/j/g, 'i');
-  }
   function renderWrite(fresh) {
     if (!W || fresh) W = { item: pickItem(), done: false, input: '' };
     const it = W.item;
@@ -503,11 +499,10 @@
   }
   function checkWrite(mode, sp) {
     if (W.done) return;
-    const a = normalize(W.input);
-    if (!a) return;
-    const full = normalize(L.joinForm(W.item.parts));
-    const end = normalize(sp.rest.map(function (p) { return p.t; }).join(''));
-    W.ok = a === full || (mode === 'end' && a === end);
+    if (!L.normalizeAnswer(W.input)) return;
+    const res = L.checkAnswer(W.item.parts, W.input, mode === 'end');
+    W.ok = res.ok;
+    W.gender = res.gender;
     W.done = true;
     SESSION.write.n++; if (W.ok) SESSION.write.ok++;
     record(W.item, W.ok);
@@ -517,6 +512,9 @@
     const it = W.item;
     let html = '<div class="feedback ' + (W.ok ? 'ok' : 'bad') + '">' +
       '<div class="verdict">' + (W.ok ? '✓ Doğru!' : '✗ Yanlış') + '</div>';
+    if (W.ok && (W.gender === 'f' || W.gender === 'n')) {
+      html += '<div class="small">Doğru — ' + (W.gender === 'f' ? 'dişil' : 'nötr') + ' biçim. Tabloda eril gösteriliyor.</div>';
+    }
     if (!W.ok) html += '<div>Senin yazdığın: <span class="lat">' + esc(W.input) + '</span></div>';
     html += '<div>Doğrusu: ' + segHTML(it.parts, true) +
       (mode === 'end' ? ' &nbsp;→ ek: ' + endingHTML(it.parts) : '') + '</div>' +

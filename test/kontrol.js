@@ -102,6 +102,7 @@ const REF = {
     'pas.fut2': 'audītus_erō audītus_eris audītus_erit audītī_erimus audītī_eritis audītī_erunt'
   },
   video_pp: { 'pas.perf': 'vīsus_sum vīsus_es vīsus_est vīsī_sumus vīsī_estis vīsī_sunt' },
+  dico_pp: { 'pas.perf': 'dictus_sum dictus_es dictus_est dictī_sumus dictī_estis dictī_sunt' },
   mitto_pp: { 'pas.plpf': 'missus_eram missus_erās missus_erat missī_erāmus missī_erātis missī_erant' },
   // Ek fiiller: her birinden birkaç ayırt edici biçim
   laudo: { 'act.pres': 'laudō laudās laudat laudāmus laudātis laudant', 'act.perf': 'laudāvī laudāvistī laudāvit laudāvimus laudāvistis laudāvērunt' },
@@ -159,6 +160,35 @@ for (const [id, key, i, exp] of TR) {
   const [voice, tense] = key.split('.');
   const got = L.meaning(byId[id], voice, tense, i);
   if (got !== exp) { console.log(`HATA anlam ${id} ${key} ${i}: ${got} ≠ ${exp}`); fail++; } else ok++;
+}
+// Yazma cevabı kabulü: [fiil, zaman, kişi, girdi, sadece ek modu, beklenen ok, beklenen cinsiyet]
+const ANS = [
+  ['amo', 'pas.perf', 0, 'amatus sum', false, true, 'm'],
+  ['amo', 'pas.perf', 0, 'amāta sum', false, true, 'f'],
+  ['amo', 'pas.perf', 0, 'amatum  sum', false, true, 'n'],
+  ['amo', 'pas.perf', 3, 'amati sumus', false, true, 'm'],
+  ['amo', 'pas.perf', 3, 'amatae sumus', false, true, 'f'],
+  ['amo', 'pas.perf', 3, 'amata sumus', false, true, 'n'],
+  ['amo', 'pas.perf', 0, 'amatae sum', false, false, null],   // çoğul ek, tekil kişi
+  ['amo', 'pas.perf', 3, 'amatum sumus', false, false, null], // tekil ek, çoğul kişi
+  ['amo', 'pas.perf', 0, 'amata es', false, false, null],     // yanlış kişi
+  ['rego', 'pas.plpf', 2, '-a erat', true, true, 'f'],
+  ['rego', 'pas.plpf', 2, 'um erat', true, true, 'n'],
+  ['rego', 'pas.plpf', 2, 'um erat', false, false, null],     // tam biçim modunda sadece ek yetmez
+  ['capio', 'pas.fut2', 5, 'ae erunt', true, true, 'f'],
+  ['capio', 'pas.fut2', 5, 'capta erunt', false, true, 'n'],
+  ['duco', 'pas.perf', 1, 'ductus es', false, true, 'm'],
+  ['amo', 'act.perf', 0, 'AMAVI', false, true, null],
+  ['amo', 'act.perf', 0, 'vi', true, false, null],
+  ['amo', 'act.perf', 0, '-i', true, true, null],
+  ['iacio', 'act.pres', 0, 'jacio', false, true, null]
+];
+for (const [id, key, i, input, endOnly, expOk, expG] of ANS) {
+  const [voice, tense] = key.split('.');
+  const r = L.checkAnswer(L.form(byId[id], voice, tense, i), input, endOnly);
+  if (r.ok !== expOk || r.gender !== expG) {
+    console.log(`HATA kabul ${id} ${key} ${i} "${input}": ${JSON.stringify(r)} ≠ ok=${expOk}, ${expG}`); fail++;
+  } else ok++;
 }
 // Her fiil için tüm tabloların üretilebildiğini ve boş anlam olmadığını kontrol et
 for (const v of L.VERBS) {

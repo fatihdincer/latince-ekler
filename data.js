@@ -423,11 +423,42 @@
     return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   }
 
+  /* ---------- Yazma cevabının kontrolü ---------- */
+  // makron ve büyük/küçük harf önemsiz; baştaki tire ve boşluklar atılır
+  function normalizeAnswer(s) {
+    return stripMacrons(s).replace(/\s+/g, '').replace(/^-+/, '').replace(/j/g, 'i');
+  }
+  // Edilgen perfectum sisteminde participium özneye uyar:
+  // tekil -us / -a / -um, çoğul -ī / -ae / -a (eril / dişil / nötr)
+  const ADJ_VARIANTS = {
+    us: [['us', 'm'], ['a', 'f'], ['um', 'n']],
+    'ī': [['ī', 'm'], ['ae', 'f'], ['a', 'n']]
+  };
+  // parts: beklenen biçim; endOnly: kök/gövde verildi, sadece ek de kabul.
+  // Sonuç {ok, gender}: gender = 'm' | 'f' | 'n' (yalnız sıfat ekli biçimlerde), yoksa null.
+  function checkAnswer(parts, input, endOnly) {
+    const a = normalizeAnswer(input);
+    let stemLen = 0;
+    while (stemLen < parts.length && 'rpq'.indexOf(parts[stemLen].k) >= 0) stemLen++;
+    const adj = parts.findIndex(function (p) { return p.k === 'a'; });
+    const variants = adj < 0 ? [[null, parts]] : ADJ_VARIANTS[parts[adj].t].map(function (x) {
+      return [x[1], parts.map(function (p, j) { return j === adj ? seg(x[0], 'a') : p; })];
+    });
+    for (let n = 0; n < variants.length; n++) {
+      const ps = variants[n][1];
+      if (a === normalizeAnswer(joinForm(ps)) || (endOnly && a === normalizeAnswer(joinForm(ps.slice(stemLen))))) {
+        return { ok: true, gender: variants[n][0] };
+      }
+    }
+    return { ok: false, gender: null };
+  }
+
   const API = {
     PERSONS: PERSONS, TENSES: TENSES, VOICES: VOICES, TENSE_KEYS: TENSE_KEYS, STAGES: STAGES,
     CONJ: CONJ, VERBS: VERBS, TIPS: TIPS,
     form: form, joinForm: joinForm, meaning: meaning, tenseLabel: tenseLabel,
-    explainPart: explainPart, tips: tips, stripMacrons: stripMacrons
+    explainPart: explainPart, tips: tips, stripMacrons: stripMacrons,
+    normalizeAnswer: normalizeAnswer, checkAnswer: checkAnswer
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.LATIN = API;
